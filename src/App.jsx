@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, Code, Database, BookOpen, MessageSquare, GraduationCap, FileCode, GraduationCap as LessonsIcon, Sparkles, Bookmark, Info, BarChart3, ChevronDown, ChevronRight, Settings, Moon, Sun, SlidersHorizontal, X } from 'lucide-react'
+import { LayoutDashboard, Code, Database, BookOpen, MessageSquare, GraduationCap, FileCode, GraduationCap as LessonsIcon, Sparkles, Bookmark, Info, BarChart3, ChevronDown, ChevronRight, Settings, Moon, Sun, SlidersHorizontal, X, Menu } from 'lucide-react'
 import JSTriviaLab from './components/JSTriviaLab'
 import SchedulingArchitect from './components/SchedulingArchitect'
 import ActiveRecallQuizzer from './components/ActiveRecallQuizzer'
@@ -24,6 +24,7 @@ function AppContent() {
   const [navigationParams, setNavigationParams] = useState({})
   const [expandedGroups, setExpandedGroups] = useState(() => new Set(['getting-started', 'study-materials']))
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const getPreferredTheme = () => {
     const stored = localStorage.getItem('prep-theme')
     if (stored === 'dark' || stored === 'light') return stored
@@ -130,24 +131,51 @@ function AppContent() {
     return () => window.removeEventListener('navigate', handleNavigate)
   }, [])
 
+  // Close mobile menu when section changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [activeSection])
+
   return (
     <div className={theme === 'dark' ? 'dark' : ''}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex text-slate-900 dark:text-slate-100 transition-colors duration-300">
+      {/* Mobile Menu Backdrop */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 dark:bg-black/70 z-40 lg:hidden transition-opacity duration-300"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-72 bg-white/90 dark:bg-slate-900/95 border-r border-slate-200/80 dark:border-slate-800/80 shadow-xl backdrop-blur-xl flex-shrink-0 transition-all duration-300">
-        <div className="p-6 border-b border-slate-200/60 dark:border-slate-800/60">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-salesforce-blue via-blue-600 to-salesforce-dark-blue text-white flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 transition-transform hover:scale-105">
-              <LayoutDashboard className="w-6 h-6" />
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-50
+        w-72 bg-white/90 dark:bg-slate-900/95 border-r border-slate-200/80 dark:border-slate-800/80 shadow-xl backdrop-blur-xl flex-shrink-0 transition-all duration-300
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        <div className="p-4 lg:p-6 border-b border-slate-200/60 dark:border-slate-800/60">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-salesforce-blue via-blue-600 to-salesforce-dark-blue text-white flex items-center justify-center shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 transition-transform hover:scale-105">
+                <LayoutDashboard className="w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-salesforce-dark-blue dark:text-white tracking-tight">
+                  Prep Dashboard
+                </h1>
+                <p className="text-xs text-salesforce-gray dark:text-slate-400 mt-0.5">
+                  Salesforce Interview Prep
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-salesforce-dark-blue dark:text-white tracking-tight">
-                Prep Dashboard
-              </h1>
-              <p className="text-xs text-salesforce-gray dark:text-slate-400 mt-0.5">
-                Salesforce Interview Prep
-              </p>
-            </div>
+            {/* Close button for mobile */}
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
         
@@ -170,7 +198,7 @@ function AppContent() {
                     }
                     setExpandedGroups(newExpanded)
                   }}
-                  className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl font-semibold text-xs uppercase tracking-wider transition-all duration-200 text-left group ${
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-3 sm:py-2.5 rounded-xl font-semibold text-xs uppercase tracking-wider transition-all duration-200 text-left group touch-manipulation ${
                     hasActiveSection
                       ? 'text-salesforce-blue bg-gradient-to-r from-salesforce-light-blue/80 to-blue-50/50 dark:from-slate-800/80 dark:to-slate-800/40 dark:text-blue-300 shadow-sm'
                       : 'text-salesforce-gray dark:text-slate-400 hover:text-salesforce-dark-blue hover:bg-slate-50/80 dark:hover:bg-slate-800/50 dark:hover:text-white'
@@ -197,7 +225,7 @@ function AppContent() {
                             setActiveSection(section.id)
                             setNavigationParams({}) // Clear navigation params on manual navigation
                           }}
-                          className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg font-medium transition-all duration-200 text-left group ${
+                          className={`w-full flex items-center gap-2.5 px-3.5 py-3 sm:py-2.5 rounded-lg font-medium transition-all duration-200 text-left group touch-manipulation ${
                             activeSection === section.id
                               ? 'bg-gradient-to-r from-salesforce-light-blue/90 to-blue-50/70 text-salesforce-blue dark:from-slate-800/90 dark:to-slate-800/60 dark:text-blue-200 shadow-sm scale-[1.02]'
                               : 'text-salesforce-gray dark:text-slate-400 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 hover:text-salesforce-dark-blue dark:hover:text-white hover:translate-x-1'
@@ -217,24 +245,38 @@ function AppContent() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Header */}
         <header className="bg-white/90 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800/80 shadow-sm flex-shrink-0 backdrop-blur-xl transition-all duration-300">
-          <div className="px-8 py-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-6">
+          <div className="px-4 lg:px-8 py-4 lg:py-5">
+            {/* Mobile Header Row */}
+            <div className="flex items-center justify-between mb-3 lg:hidden">
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+                aria-label="Open menu"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              <div className="flex items-center gap-2">
+                <StreakCounter streak={gameState.streak} />
+              </div>
+            </div>
+
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
                 <InterviewCountdown />
-                <div className="h-6 w-px bg-slate-200/60 dark:bg-slate-800/60"></div>
+                <div className="hidden sm:block h-6 w-px bg-slate-200/60 dark:bg-slate-800/60"></div>
                 <div>
-                  <h2 className="text-2xl font-bold text-salesforce-dark-blue dark:text-white tracking-tight">
+                  <h2 className="text-xl sm:text-2xl font-bold text-salesforce-dark-blue dark:text-white tracking-tight">
                     {allSections.find(s => s.id === activeSection)?.label || 'Interview Prep Dashboard'}
                   </h2>
-                  <p className="text-sm text-salesforce-gray dark:text-slate-400 mt-1">
+                  <p className="text-xs sm:text-sm text-salesforce-gray dark:text-slate-400 mt-1">
                     Full Stack Engineer (Scheduling ECCH) - Salesforce
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="hidden lg:flex items-center gap-3">
                 <StreakCounter streak={gameState.streak} />
               </div>
             </div>
@@ -244,8 +286,8 @@ function AppContent() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto bg-gradient-to-b from-transparent to-slate-50/50 dark:to-slate-950/50">
-          <div className="max-w-7xl mx-auto px-8 py-8 space-y-6">
-            <div className="rounded-3xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800/60 shadow-xl backdrop-blur-xl p-8 transition-all duration-300 hover:shadow-2xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
+            <div className="rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800/60 shadow-xl backdrop-blur-xl p-4 sm:p-6 lg:p-8 transition-all duration-300 hover:shadow-2xl">
               {activeSection === 'about' && <About />}
               {activeSection === 'dashboard' && <Dashboard />}
               {activeSection === 'study-guide' && <StudyGuide />}
@@ -269,17 +311,17 @@ function AppContent() {
         </main>
       </div>
       
-      {/* Floating Controls - Bottom Left */}
-      <div className="fixed bottom-6 left-6 z-50 flex flex-col items-center gap-3">
+      {/* Floating Controls - Bottom Right on Mobile, Bottom Left on Desktop */}
+      <div className="fixed bottom-4 right-4 lg:bottom-6 lg:left-6 z-50 flex flex-col items-center gap-3">
         {/* Settings Button */}
         <button
           onClick={() => setIsSettingsOpen((prev) => !prev)}
-          className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-700 via-slate-600 to-slate-700 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 text-white shadow-2xl border border-slate-600/40 dark:border-slate-700/40 flex items-center justify-center hover:shadow-blue-500/20 hover:scale-110 active:scale-95 transition-all duration-200 ${
+          className={`w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-gradient-to-br from-slate-700 via-slate-600 to-slate-700 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 text-white shadow-2xl border border-slate-600/40 dark:border-slate-700/40 flex items-center justify-center hover:shadow-blue-500/20 hover:scale-110 active:scale-95 transition-all duration-200 touch-manipulation ${
             isSettingsOpen ? 'ring-2 ring-salesforce-blue/50 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''
           }`}
           aria-label="Open settings"
         >
-          <Settings className="w-6 h-6" />
+          <Settings className="w-5 h-5 lg:w-6 lg:h-6" />
         </button>
         
         {/* Chat Widget */}
@@ -288,7 +330,7 @@ function AppContent() {
 
       {/* Settings Panel */}
       {isSettingsOpen && (
-        <div className="fixed bottom-24 left-6 w-80 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/98 shadow-2xl backdrop-blur-xl z-50 p-5 animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-20 right-4 lg:bottom-24 lg:left-6 w-[calc(100vw-2rem)] sm:w-80 max-w-sm rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/98 shadow-2xl backdrop-blur-xl z-50 p-4 sm:p-5 animate-in slide-in-from-bottom-4 duration-300">
           <div className="flex items-start justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-salesforce-light-blue to-blue-100 dark:from-slate-800 dark:to-slate-700 text-salesforce-blue dark:text-blue-200 flex items-center justify-center shadow-sm">

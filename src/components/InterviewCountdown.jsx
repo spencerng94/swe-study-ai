@@ -51,9 +51,9 @@ function InterviewCountdown() {
   }, [])
 
   return (
-    <div className="flex items-center gap-2 text-salesforce-dark-blue">
-      <Clock className="w-4 h-4" />
-      <span className="text-sm font-semibold">
+    <div className="flex items-center gap-2 text-salesforce-dark-blue dark:text-white">
+      <Clock className="w-4 h-4 flex-shrink-0" />
+      <span className="text-xs sm:text-sm font-semibold">
         <span className="font-bold text-salesforce-blue">{timeLeft.days}</span> days,{' '}
         <span className="font-bold text-salesforce-blue">{timeLeft.hours}</span> hours left
       </span>

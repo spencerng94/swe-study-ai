@@ -3,11 +3,14 @@ import { TrendingUp, BookOpen, CheckCircle, Clock, Target, MessageSquare, Sparkl
 import { useGame } from './gamification/GameProvider'
 import { Achievements } from './gamification/Achievements'
 import { DailyChallenges } from './gamification/DailyChallenges'
+import { savedQuestionsService, studyGuideService } from '../lib/dataService'
 
-// Get progress data from localStorage
-const getProgressData = () => {
-  const savedQuestions = JSON.parse(localStorage.getItem('savedQuestions') || '[]')
-  const studyGuideProgress = JSON.parse(localStorage.getItem('studyGuideProgress') || '{}')
+// Get progress data from data services
+const getProgressData = async () => {
+  const [savedQuestions, studyGuideProgress] = await Promise.all([
+    savedQuestionsService.load(),
+    studyGuideService.load()
+  ])
   
   // Calculate Study Guide completion
   const completedItems = Object.keys(studyGuideProgress).filter(key => studyGuideProgress[key]).length
@@ -15,7 +18,7 @@ const getProgressData = () => {
   
   // Get recent activity
   const recentActivity = savedQuestions
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
     .slice(0, 5)
   
   // Calculate category distribution
@@ -40,12 +43,32 @@ const getProgressData = () => {
 
 function Dashboard() {
   const gameState = useGame()
-  const [progressData, setProgressData] = useState(() => getProgressData())
+  const [progressData, setProgressData] = useState({
+    savedQuestionsCount: 0,
+    studyGuideProgress: 0,
+    completedItems: 0,
+    totalItems: 32,
+    recentActivity: [],
+    categoryCounts: {},
+    topCategories: []
+  })
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    // Load initial data
+    const loadData = async () => {
+      setIsLoading(true)
+      const data = await getProgressData()
+      setProgressData(data)
+      setIsLoading(false)
+    }
+    
+    loadData()
+    
     // Update progress when storage changes
-    const handleStorageChange = () => {
-      setProgressData(getProgressData())
+    const handleStorageChange = async () => {
+      const data = await getProgressData()
+      setProgressData(data)
     }
     
     window.addEventListener('storage', handleStorageChange)
@@ -54,9 +77,6 @@ function Dashboard() {
     
     // Also check on focus
     window.addEventListener('focus', handleStorageChange)
-    
-    // Initial load
-    setProgressData(getProgressData())
     
     return () => {
       window.removeEventListener('storage', handleStorageChange)
@@ -69,59 +89,59 @@ function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-2">
-          <TrendingUp className="w-6 h-6 text-salesforce-blue" />
-          <h2 className="text-2xl font-bold text-salesforce-dark-blue">
+          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-salesforce-blue" />
+          <h2 className="text-xl sm:text-2xl font-bold text-salesforce-dark-blue dark:text-white">
             Progress Dashboard
           </h2>
         </div>
-        <p className="text-salesforce-gray">
+        <p className="text-sm sm:text-base text-salesforce-gray dark:text-slate-400">
           Track your interview preparation progress and get personalized study recommendations
         </p>
       </div>
 
       {/* Gamification Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg shadow-sm border-2 border-yellow-200 p-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg shadow-sm border-2 border-yellow-200 dark:border-yellow-800/40 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
-            <Star className="w-6 h-6 text-yellow-600 fill-yellow-600" />
-            <div className="text-2xl font-bold text-yellow-900">
+            <Star className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600 dark:text-yellow-400 fill-yellow-600 dark:fill-yellow-400" />
+            <div className="text-xl sm:text-2xl font-bold text-yellow-900 dark:text-yellow-100">
               {gameState.levelProgress.level}
             </div>
           </div>
-          <h3 className="font-semibold text-yellow-900 mb-1">Level</h3>
-          <p className="text-xs text-yellow-700">Keep leveling up!</p>
+          <h3 className="text-sm sm:text-base font-semibold text-yellow-900 dark:text-yellow-100 mb-1">Level</h3>
+          <p className="text-xs text-yellow-700 dark:text-yellow-300">Keep leveling up!</p>
         </div>
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-sm border-2 border-purple-200 p-6">
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg shadow-sm border-2 border-purple-200 dark:border-purple-800/40 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
-            <Zap className="w-6 h-6 text-purple-600 fill-purple-600" />
-            <div className="text-2xl font-bold text-purple-900">
+            <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-400 fill-purple-600 dark:fill-purple-400" />
+            <div className="text-xl sm:text-2xl font-bold text-purple-900 dark:text-purple-100">
               {gameState.totalXP || 0}
             </div>
           </div>
-          <h3 className="font-semibold text-purple-900 mb-1">Total XP</h3>
-          <p className="text-xs text-purple-700">Lifetime points earned</p>
+          <h3 className="text-sm sm:text-base font-semibold text-purple-900 dark:text-purple-100 mb-1">Total XP</h3>
+          <p className="text-xs text-purple-700 dark:text-purple-300">Lifetime points earned</p>
         </div>
-        <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-lg shadow-sm border-2 border-orange-200 p-6">
+        <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-lg shadow-sm border-2 border-orange-200 dark:border-orange-800/40 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
-            <Target className="w-6 h-6 text-orange-600 fill-orange-600" />
-            <div className="text-2xl font-bold text-orange-900">
+            <Target className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 dark:text-orange-400 fill-orange-600 dark:fill-orange-400" />
+            <div className="text-xl sm:text-2xl font-bold text-orange-900 dark:text-orange-100">
               {gameState.stats?.flashcardsCompleted || 0}
             </div>
           </div>
-          <h3 className="font-semibold text-orange-900 mb-1">Flashcards</h3>
-          <p className="text-xs text-orange-700">Completed today</p>
+          <h3 className="text-sm sm:text-base font-semibold text-orange-900 dark:text-orange-100 mb-1">Flashcards</h3>
+          <p className="text-xs text-orange-700 dark:text-orange-300">Completed today</p>
         </div>
-        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg shadow-sm border-2 border-blue-200 p-6">
+        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg shadow-sm border-2 border-blue-200 dark:border-blue-800/40 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
-            <MessageSquare className="w-6 h-6 text-blue-600 fill-blue-600" />
-            <div className="text-2xl font-bold text-blue-900">
+            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400 fill-blue-600 dark:fill-blue-400" />
+            <div className="text-xl sm:text-2xl font-bold text-blue-900 dark:text-blue-100">
               {gameState.stats?.questionsViewed || 0}
             </div>
           </div>
-          <h3 className="font-semibold text-blue-900 mb-1">Questions</h3>
-          <p className="text-xs text-blue-700">Viewed today</p>
+          <h3 className="text-sm sm:text-base font-semibold text-blue-900 dark:text-blue-100 mb-1">Questions</h3>
+          <p className="text-xs text-blue-700 dark:text-blue-300">Viewed today</p>
         </div>
       </div>
 
@@ -135,7 +155,7 @@ function Dashboard() {
       />
 
       {/* Progress Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <ProgressCard
           title="Study Guide Progress"
           value={progressData.studyGuideProgress}
@@ -166,8 +186,8 @@ function Dashboard() {
 
       {/* Recent Activity */}
       {progressData.recentActivity.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-bold text-salesforce-dark-blue mb-4">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-bold text-salesforce-dark-blue dark:text-white mb-4">
             Recent Activity
           </h3>
           <div className="space-y-3">
@@ -190,8 +210,8 @@ function Dashboard() {
 
       {/* Top Categories */}
       {progressData.topCategories.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-bold text-salesforce-dark-blue mb-4">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-bold text-salesforce-dark-blue dark:text-white mb-4">
             Focus Areas
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -221,24 +241,24 @@ function ProgressCard({ title, value, subtitle, icon: Icon, color }) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <div className={`w-12 h-12 rounded-full ${colorClasses[color]} flex items-center justify-center`}>
-          <Icon className="w-6 h-6" />
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${colorClasses[color]} flex items-center justify-center`}>
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
         {typeof value === 'number' && value <= 100 && (
-          <div className="text-2xl font-bold text-salesforce-dark-blue">
+          <div className="text-xl sm:text-2xl font-bold text-salesforce-dark-blue dark:text-white">
             {value}%
           </div>
         )}
         {typeof value === 'number' && value > 100 && (
-          <div className="text-2xl font-bold text-salesforce-dark-blue">
+          <div className="text-xl sm:text-2xl font-bold text-salesforce-dark-blue dark:text-white">
             {value}
           </div>
         )}
       </div>
-      <h3 className="font-semibold text-salesforce-dark-blue mb-1">{title}</h3>
-      <p className="text-sm text-salesforce-gray">{subtitle}</p>
+      <h3 className="text-sm sm:text-base font-semibold text-salesforce-dark-blue dark:text-white mb-1">{title}</h3>
+      <p className="text-xs sm:text-sm text-salesforce-gray dark:text-slate-400">{subtitle}</p>
       {typeof value === 'number' && value <= 100 && (
         <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
           <div
@@ -433,19 +453,19 @@ Feel free to ask for more adjustments!`
   }, [])
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 p-4 sm:p-6">
       <div className="flex items-center gap-3 mb-4">
-        <Calendar className="w-6 h-6 text-salesforce-blue" />
-        <h3 className="text-lg font-bold text-salesforce-dark-blue">
+        <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-salesforce-blue" />
+        <h3 className="text-base sm:text-lg font-bold text-salesforce-dark-blue dark:text-white">
           AI Study Schedule
         </h3>
       </div>
-      <p className="text-sm text-salesforce-gray mb-4">
+      <p className="text-xs sm:text-sm text-salesforce-gray dark:text-slate-400 mb-4">
         Get a personalized study schedule for today. Ask questions or request changes!
       </p>
 
       {/* Conversation */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-4 max-h-96 overflow-y-auto">
+      <div className="bg-gray-50 dark:bg-slate-900/50 rounded-lg p-3 sm:p-4 mb-4 max-h-96 overflow-y-auto">
         {conversation.length === 0 && !isGenerating && (
           <div className="text-center text-gray-500 py-8">
             <Sparkles className="w-8 h-8 mx-auto mb-2 text-gray-400" />
@@ -504,16 +524,16 @@ Feel free to ask for more adjustments!`
           value={userInput}
           onChange={(e) => setUserInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-          placeholder="Ask for changes or ask questions about the schedule..."
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:border-salesforce-blue focus:ring-2 focus:ring-salesforce-light-blue focus:outline-none text-sm"
+          placeholder="Ask for changes or ask questions..."
+          className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:border-salesforce-blue focus:ring-2 focus:ring-salesforce-light-blue focus:outline-none text-sm"
         />
         <button
           onClick={handleSendMessage}
           disabled={!userInput.trim() || isGenerating}
-          className="px-4 py-2 bg-salesforce-blue text-white rounded-lg hover:bg-salesforce-dark-blue transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-3 sm:px-4 py-2 bg-salesforce-blue text-white rounded-lg hover:bg-salesforce-dark-blue transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 touch-manipulation"
         >
           <MessageSquare className="w-4 h-4" />
-          Send
+          <span className="hidden sm:inline">Send</span>
         </button>
       </div>
 
@@ -541,7 +561,7 @@ Feel free to ask for more adjustments!`
               setIsGenerating(false)
             }, 1200)
           }}
-          className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors touch-manipulation"
         >
           Make it shorter
         </button>
@@ -572,7 +592,7 @@ Feel free to ask for more adjustments!`
               setIsGenerating(false)
             }, 1200)
           }}
-          className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors touch-manipulation"
         >
           Focus on React
         </button>
@@ -602,7 +622,7 @@ Feel free to ask for more adjustments!`
               setIsGenerating(false)
             }, 1200)
           }}
-          className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors touch-manipulation"
         >
           2 hours only
         </button>
@@ -611,7 +631,7 @@ Feel free to ask for more adjustments!`
             setConversation([])
             generateSchedule()
           }}
-          className="px-3 py-1.5 text-xs bg-salesforce-light-blue text-salesforce-blue rounded-lg hover:bg-salesforce-blue hover:text-white transition-colors"
+          className="px-3 py-1.5 text-xs bg-salesforce-light-blue dark:bg-slate-700 text-salesforce-blue dark:text-blue-300 rounded-lg hover:bg-salesforce-blue hover:text-white dark:hover:bg-blue-600 transition-colors touch-manipulation"
         >
           Regenerate
         </button>

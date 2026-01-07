@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CheckCircle, Circle, BookOpen, Code, Database, Target, Clock, Link2 } from 'lucide-react'
 import { useGame } from './gamification/GameProvider'
+import { studyGuideService } from '../lib/dataService'
 
 const studyPlan = {
   session1: {
@@ -129,17 +130,21 @@ const studyPlan = {
 function StudyGuide() {
   const gameState = useGame()
   const [activeSession, setActiveSession] = useState('session1')
-  const [completedItems, setCompletedItems] = useState(() => {
-    // Load from localStorage on mount
-    const saved = localStorage.getItem('studyGuideProgress')
-    if (saved) {
-      const progressObj = JSON.parse(saved)
-      return new Set(Object.keys(progressObj).filter(key => progressObj[key]))
-    }
-    return new Set()
-  })
+  const [completedItems, setCompletedItems] = useState(new Set())
+  const [isLoading, setIsLoading] = useState(true)
 
-  const toggleItem = (sessionId, topicIndex, itemIndex) => {
+  useEffect(() => {
+    const loadProgress = async () => {
+      setIsLoading(true)
+      const progress = await studyGuideService.load()
+      const progressSet = new Set(Object.keys(progress).filter(key => progress[key]))
+      setCompletedItems(progressSet)
+      setIsLoading(false)
+    }
+    loadProgress()
+  }, [])
+
+  const toggleItem = async (sessionId, topicIndex, itemIndex) => {
     const key = `${sessionId}-${topicIndex}-${itemIndex}`
     const newCompleted = new Set(completedItems)
     const wasCompleted = newCompleted.has(key)
@@ -154,11 +159,14 @@ function StudyGuide() {
     
     setCompletedItems(newCompleted)
     
-    // Save to localStorage for Dashboard tracking
+    // Save using data service
     const progressObj = {}
     Array.from(newCompleted).forEach(item => {
       progressObj[item] = true
     })
+    await studyGuideService.save(progressObj)
+    
+    // Also save to localStorage as fallback for Dashboard
     localStorage.setItem('studyGuideProgress', JSON.stringify(progressObj))
     
     // Dispatch event to update Dashboard

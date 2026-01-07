@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
+import { gameStateService } from '../lib/dataService'
+import { studyGuideService } from '../lib/dataService'
 
-const STORAGE_KEY = 'gameState'
 const XP_PER_LEVEL = 100
 const MAX_STREAK = 365
 
@@ -98,16 +99,7 @@ const XP_REWARDS = {
   TOOL_USAGE: 5,
 }
 
-const getInitialState = () => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      return JSON.parse(saved)
-    }
-  } catch (e) {
-    console.error('Failed to load game state:', e)
-  }
-  
+const getDefaultState = () => {
   return {
     xp: 0,
     totalXP: 0,
@@ -122,14 +114,6 @@ const getInitialState = () => {
       lessonsCompleted: 0,
       toolsUsed: 0,
     },
-  }
-}
-
-const saveState = (state) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  } catch (e) {
-    console.error('Failed to save game state:', e)
   }
 }
 
@@ -181,11 +165,17 @@ const checkAchievements = (state, newState) => {
           shouldUnlock = newState.stats.questionsViewed >= count
           break
         case 'studyGuide':
-          const studyGuideProgress = JSON.parse(localStorage.getItem('studyGuideProgress') || '{}')
-          const completedItems = Object.keys(studyGuideProgress).filter(key => studyGuideProgress[key]).length
-          const totalItems = 32
-          const progress = (completedItems / totalItems) * 100
-          shouldUnlock = progress >= (percent || 100)
+          // For now, check localStorage as fallback (StudyGuide component also saves there)
+          // In the future, we could make this async or pass progress as a parameter
+          try {
+            const studyGuideProgress = JSON.parse(localStorage.getItem('studyGuideProgress') || '{}')
+            const completedItems = Object.keys(studyGuideProgress).filter(key => studyGuideProgress[key]).length
+            const totalItems = 32
+            const progressPercent = (completedItems / totalItems) * 100
+            shouldUnlock = progressPercent >= (percent || 100)
+          } catch (e) {
+            shouldUnlock = false
+          }
           break
         case 'level':
           shouldUnlock = newState.level >= count
@@ -240,44 +230,56 @@ const updateStreak = (state) => {
 }
 
 export function useGameState() {
-  const [state, setState] = useState(getInitialState)
+  const [state, setState] = useState(getDefaultState)
   const [levelUp, setLevelUp] = useState(false)
   const [recentAchievements, setRecentAchievements] = useState([])
   const [recentXP, setRecentXP] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Load state on mount
   useEffect(() => {
-    const loadedState = getInitialState()
-    
-    // Check for daily login bonus
-    const today = new Date().toDateString()
-    const lastDate = loadedState.lastActivityDate ? new Date(loadedState.lastActivityDate).toDateString() : null
-    
-    if (lastDate !== today && lastDate !== null) {
-      // Award daily login bonus (will be applied in the awardXP call below)
-      loadedState.xp += XP_REWARDS.DAILY_LOGIN
-      loadedState.totalXP = (loadedState.totalXP || 0) + XP_REWARDS.DAILY_LOGIN
+    const loadState = async () => {
+      setIsLoading(true)
+      let loadedState = await gameStateService.load()
+      
+      // If no saved state, use default
+      if (!loadedState) {
+        loadedState = getDefaultState()
+      }
+      
+      // Check for daily login bonus
+      const today = new Date().toDateString()
+      const lastDate = loadedState.lastActivityDate ? new Date(loadedState.lastActivityDate).toDateString() : null
+      
+      if (lastDate !== today && lastDate !== null) {
+        // Award daily login bonus (will be applied in the awardXP call below)
+        loadedState.xp += XP_REWARDS.DAILY_LOGIN
+        loadedState.totalXP = (loadedState.totalXP || 0) + XP_REWARDS.DAILY_LOGIN
+      }
+      
+      // Update streak if needed
+      const newStreak = updateStreak(loadedState)
+      if (newStreak !== loadedState.streak) {
+        loadedState.streak = newStreak
+      }
+      loadedState.lastActivityDate = new Date().toISOString()
+      
+      // Recalculate level
+      const levelProgress = getCurrentLevelProgress(loadedState.xp)
+      if (levelProgress.level !== loadedState.level) {
+        loadedState.level = levelProgress.level
+      }
+      
+      await gameStateService.save(loadedState)
+      setState(loadedState)
+      setIsLoading(false)
     }
     
-    // Update streak if needed
-    const newStreak = updateStreak(loadedState)
-    if (newStreak !== loadedState.streak) {
-      loadedState.streak = newStreak
-    }
-    loadedState.lastActivityDate = new Date().toISOString()
-    
-    // Recalculate level
-    const levelProgress = getCurrentLevelProgress(loadedState.xp)
-    if (levelProgress.level !== loadedState.level) {
-      loadedState.level = levelProgress.level
-    }
-    
-    saveState(loadedState)
-    setState(loadedState)
+    loadState()
   }, [])
 
   // Award XP
-  const awardXP = useCallback((amount, source = 'activity') => {
+  const awardXP = useCallback(async (amount, source = 'activity') => {
     setState(prevState => {
       const newState = {
         ...prevState,
@@ -315,7 +317,9 @@ export function useGameState() {
       // Recalculate level
       newState.level = newLevel
       
-      saveState(newState)
+      // Save asynchronously (don't await to avoid blocking UI)
+      gameStateService.save(newState)
+      
       return newState
     })
   }, [])
@@ -388,6 +392,7 @@ export function useGameState() {
     recentXP,
     awardXP,
     actions,
+    isLoading,
     achievements: Object.values(ACHIEVEMENTS).filter(a => 
       (state.achievements || []).includes(a.id)
     ),

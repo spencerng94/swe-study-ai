@@ -32,6 +32,7 @@ A high-fidelity, interactive Interview Prep Dashboard for the "Full Stack Engine
 - **Tailwind CSS** for styling
 - **Lucide React** for icons
 - **Vite** for build tooling
+- **Supabase** for data persistence (optional - falls back to localStorage)
 
 ## Getting Started
 
@@ -40,12 +41,17 @@ A high-fidelity, interactive Interview Prep Dashboard for the "Full Stack Engine
 npm install
 ```
 
-2. Start the development server:
+2. (Optional) Set up database persistence:
+   - See [DATABASE_SETUP.md](./DATABASE_SETUP.md) for detailed instructions
+   - Create a `.env` file with your Supabase credentials (see `.env.example`)
+   - Without Supabase, the app will use localStorage (browser-only storage)
+
+3. Start the development server:
 ```bash
 npm run dev
 ```
 
-3. Open your browser to the URL shown in the terminal (typically `http://localhost:5174`)
+4. Open your browser to the URL shown in the terminal (typically `http://localhost:5174`)
 
 ## Project Structure
 

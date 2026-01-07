@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, Save, Sparkles, Loader } from 'lucide-react'
+import { savedQuestionsService } from '../lib/dataService'
 
 // Simulated AI response system - can be replaced with real API
 const categorizeQuestion = (question) => {
@@ -550,10 +551,8 @@ function SaveQuestionButton({ question, answer, category }) {
       timestamp: new Date().toISOString(),
     }
 
-    // Save to localStorage
-    const saved = JSON.parse(localStorage.getItem('savedQuestions') || '[]')
-    saved.push(savedItem)
-    localStorage.setItem('savedQuestions', JSON.stringify(saved))
+    // Save using data service
+    await savedQuestionsService.save(savedItem)
 
     setIsSaving(false)
     setShowOptions(false)

@@ -1,14 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { MessageCircle, X, Send, Bot, Loader, Sparkles } from 'lucide-react'
+import { savedQuestionsService } from '../lib/dataService'
 
 // Get contextual information about user's progress
-const getContextualInfo = () => {
-  const savedQuestions = JSON.parse(localStorage.getItem('savedQuestions') || '[]')
-  const studyGuideProgress = JSON.parse(localStorage.getItem('studyGuideProgress') || '{}')
-  
-  // Calculate progress from Study Guide checklists
-  let completedItems = 0
-  let totalItems = 0
+const getContextualInfo = async () => {
+  const savedQuestions = await savedQuestionsService.load()
   
   // This would need to match the Study Guide structure
   // For now, we'll use a simplified version
@@ -107,7 +103,7 @@ function ChatWidget({ theme = 'light' }) {
     setMessages(newMessages)
 
     // Get contextual information
-    const context = getContextualInfo()
+    const context = await getContextualInfo()
 
     // Simulate AI processing
     setTimeout(() => {
@@ -138,16 +134,16 @@ function ChatWidget({ theme = 'light' }) {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="w-14 h-14 bg-gradient-to-br from-salesforce-blue via-blue-600 to-salesforce-dark-blue text-white rounded-2xl shadow-2xl shadow-blue-500/30 dark:shadow-blue-500/20 hover:shadow-blue-500/40 border border-blue-500/20 dark:border-blue-400/20 transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center z-50"
+          className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-salesforce-blue via-blue-600 to-salesforce-dark-blue text-white rounded-2xl shadow-2xl shadow-blue-500/30 dark:shadow-blue-500/20 hover:shadow-blue-500/40 border border-blue-500/20 dark:border-blue-400/20 transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center z-50 touch-manipulation"
           aria-label="Open chat assistant"
         >
-          <MessageCircle className="w-6 h-6" />
+          <MessageCircle className="w-5 h-5 lg:w-6 lg:h-6" />
         </button>
       )}
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-6 left-6 w-96 h-[500px] bg-white/95 dark:bg-slate-900/98 rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-xl flex flex-col z-50 animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-20 right-4 lg:bottom-6 lg:left-6 w-[calc(100vw-2rem)] sm:w-96 max-w-sm lg:max-w-none h-[calc(100vh-6rem)] sm:h-[500px] max-h-[600px] bg-white/95 dark:bg-slate-900/98 rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-xl flex flex-col z-50 animate-in slide-in-from-bottom-4 duration-300">
           {/* Header */}
           <div className="bg-gradient-to-r from-salesforce-blue via-blue-600 to-salesforce-dark-blue text-white p-4 rounded-t-2xl flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-2.5">

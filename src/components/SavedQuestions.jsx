@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Bookmark, Trash2, Search, Filter, ExternalLink } from 'lucide-react'
+import { savedQuestionsService } from '../lib/dataService'
 
 function SavedQuestions() {
   const [savedQuestions, setSavedQuestions] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [expandedItems, setExpandedItems] = useState(new Set())
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     loadSavedQuestions()
@@ -32,17 +34,18 @@ function SavedQuestions() {
     }
   }, [])
 
-  const loadSavedQuestions = () => {
-    const saved = JSON.parse(localStorage.getItem('savedQuestions') || '[]')
+  const loadSavedQuestions = async () => {
+    setIsLoading(true)
+    const saved = await savedQuestionsService.load()
     // Sort by most recent first
-    saved.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    saved.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
     setSavedQuestions(saved)
+    setIsLoading(false)
   }
 
-  const deleteQuestion = (id) => {
+  const deleteQuestion = async (id) => {
     if (window.confirm('Are you sure you want to delete this saved question?')) {
-      const saved = savedQuestions.filter(q => q.id !== id)
-      localStorage.setItem('savedQuestions', JSON.stringify(saved))
+      await savedQuestionsService.delete(id)
       loadSavedQuestions()
     }
   }

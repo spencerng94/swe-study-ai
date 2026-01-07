@@ -210,3 +210,99 @@ export const studyGuideService = {
     }
   }
 }
+
+// Saved Flashcards Service
+export const savedFlashcardsService = {
+  async load() {
+    if (!supabase) {
+      // Fallback to localStorage
+      const saved = localStorage.getItem('savedFlashcards')
+      return saved ? JSON.parse(saved) : []
+    }
+
+    try {
+      const userId = getUserId()
+      const { data, error } = await supabase
+        .from('saved_flashcards')
+        .select('flashcard_id')
+        .eq('user_id', userId)
+
+      if (error) {
+        console.error('Error loading saved flashcards:', error)
+        return []
+      }
+
+      return data.map(item => item.flashcard_id)
+    } catch (error) {
+      console.error('Error loading saved flashcards:', error)
+      return []
+    }
+  },
+
+  async save(flashcardId) {
+    if (!supabase) {
+      // Fallback to localStorage
+      const saved = JSON.parse(localStorage.getItem('savedFlashcards') || '[]')
+      if (!saved.includes(flashcardId)) {
+        saved.push(flashcardId)
+        localStorage.setItem('savedFlashcards', JSON.stringify(saved))
+      }
+      return true
+    }
+
+    try {
+      const userId = getUserId()
+      const { error } = await supabase
+        .from('saved_flashcards')
+        .insert({
+          user_id: userId,
+          flashcard_id: flashcardId,
+          timestamp: new Date().toISOString(),
+        })
+
+      if (error && error.code !== '23505') { // 23505 = unique violation (already saved)
+        console.error('Error saving flashcard:', error)
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error('Error saving flashcard:', error)
+      return false
+    }
+  },
+
+  async delete(flashcardId) {
+    if (!supabase) {
+      // Fallback to localStorage
+      const saved = JSON.parse(localStorage.getItem('savedFlashcards') || '[]')
+      const filtered = saved.filter(id => id !== flashcardId)
+      localStorage.setItem('savedFlashcards', JSON.stringify(filtered))
+      return true
+    }
+
+    try {
+      const userId = getUserId()
+      const { error } = await supabase
+        .from('saved_flashcards')
+        .delete()
+        .eq('flashcard_id', flashcardId)
+        .eq('user_id', userId)
+
+      if (error) {
+        console.error('Error deleting flashcard:', error)
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error('Error deleting flashcard:', error)
+      return false
+    }
+  },
+
+  async isSaved(flashcardId) {
+    const saved = await this.load()
+    return saved.includes(flashcardId)
+  }
+}

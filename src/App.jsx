@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, Code, Database, BookOpen, MessageSquare, GraduationCap, FileCode, GraduationCap as LessonsIcon, Sparkles, Bookmark, Info, BarChart3, ChevronDown, ChevronRight, Settings, Moon, Sun, SlidersHorizontal, X, Menu } from 'lucide-react'
+import { LayoutDashboard, Code, Database, BookOpen, MessageSquare, GraduationCap, FileCode, GraduationCap as LessonsIcon, Sparkles, Bookmark, Info, BarChart3, ChevronDown, ChevronRight, Settings, Moon, Sun, SlidersHorizontal, X, Menu, Users } from 'lucide-react'
 import JSTriviaLab from './components/JSTriviaLab'
 import SchedulingArchitect from './components/SchedulingArchitect'
 import ActiveRecallQuizzer from './components/ActiveRecallQuizzer'
@@ -14,6 +14,7 @@ import About from './components/About'
 import InterviewCountdown from './components/InterviewCountdown'
 import ChatWidget from './components/ChatWidget'
 import Dashboard from './components/Dashboard'
+import SalesforceHiringProcess from './components/SalesforceHiringProcess'
 import { GameProvider, useGame } from './components/gamification/GameProvider'
 import { XPBar } from './components/gamification/XPBar'
 import { StreakCounter } from './components/gamification/StreakCounter'
@@ -40,6 +41,7 @@ function AppContent() {
       sections: [
         { id: 'about', label: 'About', icon: Info },
         { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+        { id: 'hiring-process', label: 'Salesforce Hiring Process', icon: Users },
       ],
     },
     {
@@ -290,6 +292,7 @@ function AppContent() {
             <div className="rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800/60 shadow-xl backdrop-blur-xl p-4 sm:p-6 lg:p-8 transition-all duration-300 hover:shadow-2xl">
               {activeSection === 'about' && <About />}
               {activeSection === 'dashboard' && <Dashboard />}
+              {activeSection === 'hiring-process' && <SalesforceHiringProcess />}
               {activeSection === 'study-guide' && <StudyGuide />}
               {activeSection === 'lessons' && <Lessons initialLessonId={navigationParams.lessonId} />}
               {activeSection === 'ai-tutor' && <AITutor />}

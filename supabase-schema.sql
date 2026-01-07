@@ -26,15 +26,28 @@ CREATE TABLE IF NOT EXISTS study_guide_progress (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Saved Flashcards table
+CREATE TABLE IF NOT EXISTS saved_flashcards (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  flashcard_id INTEGER NOT NULL,
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, flashcard_id)
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_saved_questions_user_id ON saved_questions(user_id);
 CREATE INDEX IF NOT EXISTS idx_saved_questions_timestamp ON saved_questions(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_saved_questions_category ON saved_questions(category);
+CREATE INDEX IF NOT EXISTS idx_saved_flashcards_user_id ON saved_flashcards(user_id);
+CREATE INDEX IF NOT EXISTS idx_saved_flashcards_flashcard_id ON saved_flashcards(flashcard_id);
+CREATE INDEX IF NOT EXISTS idx_saved_flashcards_timestamp ON saved_flashcards(timestamp DESC);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE game_states ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE study_guide_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saved_flashcards ENABLE ROW LEVEL SECURITY;
 
 -- Create policies to allow users to only access their own data
 -- Note: These policies use a function to get the current user_id
@@ -78,4 +91,17 @@ CREATE POLICY "Users can insert their own study guide progress"
 
 CREATE POLICY "Users can update their own study guide progress"
   ON study_guide_progress FOR UPDATE
+  USING (true);
+
+-- Policy for saved_flashcards
+CREATE POLICY "Users can view their own saved flashcards"
+  ON saved_flashcards FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can insert their own saved flashcards"
+  ON saved_flashcards FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Users can delete their own saved flashcards"
+  ON saved_flashcards FOR DELETE
   USING (true);

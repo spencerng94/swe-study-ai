@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, RotateCcw, Eye, EyeOff, Sparkles, CheckCircle, XCircle, MessageSquare, SkipBack, SkipForward, ArrowLeft, ArrowRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RotateCcw, Eye, EyeOff, Sparkles, CheckCircle, XCircle, MessageSquare, SkipBack, SkipForward, ArrowLeft, ArrowRight, Bookmark, BookmarkCheck } from 'lucide-react'
 import { useGame } from './gamification/GameProvider'
 import { flashcards as flashcardData } from '../data/flashcards'
+import { savedFlashcardsService } from '../lib/dataService'
 
 function ActiveRecallQuizzer({ initialCategory = 'all' }) {
   const gameState = useGame()
@@ -14,10 +15,30 @@ function ActiveRecallQuizzer({ initialCategory = 'all' }) {
   const [userAnswer, setUserAnswer] = useState('')
   const [aiFeedback, setAiFeedback] = useState(null)
   const [isRating, setIsRating] = useState(false)
+  const [savedFlashcards, setSavedFlashcards] = useState(new Set())
+  const [isBookmarking, setIsBookmarking] = useState(false)
+  const [showSavedOnly, setShowSavedOnly] = useState(false)
 
-  const filteredCards = categoryFilter === 'all'
-    ? shuffledCards
-    : shuffledCards.filter(card => card.category === categoryFilter)
+  // Load saved flashcards on mount
+  useEffect(() => {
+    const loadSaved = async () => {
+      const saved = await savedFlashcardsService.load()
+      setSavedFlashcards(new Set(saved))
+    }
+    loadSaved()
+  }, [])
+
+  const filteredCards = (() => {
+    let cards = categoryFilter === 'all'
+      ? shuffledCards
+      : shuffledCards.filter(card => card.category === categoryFilter)
+    
+    if (showSavedOnly) {
+      cards = cards.filter(card => savedFlashcards.has(card.id))
+    }
+    
+    return cards
+  })()
 
   const currentCard = filteredCards[currentIndex]
   const categories = ['all', ...new Set(flashcardData.map(c => c.category))]
@@ -178,6 +199,16 @@ function ActiveRecallQuizzer({ initialCategory = 'all' }) {
     setAiFeedback(null)
   }, [currentIndex])
 
+  // Reset index when filtered cards change (e.g., switching to saved only)
+  useEffect(() => {
+    if (currentIndex >= filteredCards.length && filteredCards.length > 0) {
+      setCurrentIndex(0)
+      setShowAnswer(false)
+      setUserAnswer('')
+      setAiFeedback(null)
+    }
+  }, [filteredCards.length, currentIndex])
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -213,6 +244,31 @@ function ActiveRecallQuizzer({ initialCategory = 'all' }) {
       setAiFeedback(null)
     }
   }, [filteredCards.length])
+
+  const toggleBookmark = async () => {
+    if (!currentCard) return
+    
+    setIsBookmarking(true)
+    const isCurrentlySaved = savedFlashcards.has(currentCard.id)
+    
+    try {
+      if (isCurrentlySaved) {
+        await savedFlashcardsService.delete(currentCard.id)
+        setSavedFlashcards(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(currentCard.id)
+          return newSet
+        })
+      } else {
+        await savedFlashcardsService.save(currentCard.id)
+        setSavedFlashcards(prev => new Set([...prev, currentCard.id]))
+      }
+    } catch (error) {
+      console.error('Error toggling bookmark:', error)
+    } finally {
+      setIsBookmarking(false)
+    }
+  }
   
   // Award XP when viewing answer (encourages learning)
   useEffect(() => {
@@ -243,7 +299,7 @@ function ActiveRecallQuizzer({ initialCategory = 'all' }) {
 
       {/* Category Filter */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap mb-4">
           <span className="font-medium text-salesforce-dark-blue">Filter by category:</span>
           {categories.map(category => (
             <button
@@ -264,6 +320,32 @@ function ActiveRecallQuizzer({ initialCategory = 'all' }) {
               {category === 'all' ? 'All' : category}
             </button>
           ))}
+          <button
+            onClick={() => {
+              setShowSavedOnly(!showSavedOnly)
+              setCurrentIndex(0)
+              setShowAnswer(false)
+              setUserAnswer('')
+              setAiFeedback(null)
+            }}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              showSavedOnly
+                ? 'bg-amber-500 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {showSavedOnly ? (
+              <>
+                <BookmarkCheck className="w-4 h-4" />
+                Saved Only ({savedFlashcards.size})
+              </>
+            ) : (
+              <>
+                <Bookmark className="w-4 h-4" />
+                Show Saved
+              </>
+            )}
+          </button>
         </div>
         {/* Try Answer Mode Toggle */}
         <div className="mt-4 pt-4 border-t border-gray-200 flex items-center gap-3">
@@ -298,22 +380,46 @@ function ActiveRecallQuizzer({ initialCategory = 'all' }) {
               Card {currentIndex + 1} of {filteredCards.length}
             </p>
           </div>
-          <button
-            onClick={() => setShowAnswer(!showAnswer)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-          >
-            {showAnswer ? (
-              <>
-                <EyeOff className="w-4 h-4" />
-                Hide Answer
-              </>
-            ) : (
-              <>
-                <Eye className="w-4 h-4" />
-                Show Answer
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleBookmark}
+              disabled={isBookmarking}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                savedFlashcards.has(currentCard.id)
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                  : 'bg-white/20 hover:bg-white/30 text-white'
+              }`}
+              title={savedFlashcards.has(currentCard.id) ? 'Remove bookmark' : 'Bookmark this card'}
+            >
+              {savedFlashcards.has(currentCard.id) ? (
+                <>
+                  <BookmarkCheck className="w-4 h-4" />
+                  <span className="hidden sm:inline">Saved</span>
+                </>
+              ) : (
+                <>
+                  <Bookmark className="w-4 h-4" />
+                  <span className="hidden sm:inline">Save</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => setShowAnswer(!showAnswer)}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+            >
+              {showAnswer ? (
+                <>
+                  <EyeOff className="w-4 h-4" />
+                  <span className="hidden sm:inline">Hide Answer</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-4 h-4" />
+                  <span className="hidden sm:inline">Show Answer</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Card Content */}

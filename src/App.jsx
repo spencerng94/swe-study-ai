@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, Code, Database, BookOpen, MessageSquare, GraduationCap, FileCode, GraduationCap as LessonsIcon, Sparkles, Bookmark, Info, BarChart3, ChevronDown, ChevronRight, Settings, Moon, Sun, SlidersHorizontal, X, Menu, Users } from 'lucide-react'
-import JSTriviaLab from './components/JSTriviaLab'
+import { LayoutDashboard, Code, Database, BookOpen, MessageSquare, GraduationCap, FileCode, GraduationCap as LessonsIcon, Sparkles, Bookmark, Info, BarChart3, ChevronDown, ChevronRight, Settings, Moon, Sun, SlidersHorizontal, X, Menu, Users, Network, Target } from 'lucide-react'
 import SchedulingArchitect from './components/SchedulingArchitect'
-import ActiveRecallQuizzer from './components/ActiveRecallQuizzer'
 import SalesforceInterviewQuestions from './components/SalesforceInterviewQuestions'
+import SalesforceLeetCodeQuestions from './components/SalesforceLeetCodeQuestions'
 import StudyGuide from './components/StudyGuide'
 import Flashcards from './components/Flashcards'
-import FrontendJavaScriptFundamentals from './components/FrontendJavaScriptFundamentals'
+import JavaScriptPractice from './components/JavaScriptPractice'
 import Lessons from './components/Lessons'
 import AITutor from './components/AITutor'
 import SavedQuestions from './components/SavedQuestions'
@@ -14,10 +13,10 @@ import About from './components/About'
 import InterviewCountdown from './components/InterviewCountdown'
 import ChatWidget from './components/ChatWidget'
 import Dashboard from './components/Dashboard'
-import SalesforceHiringProcess from './components/SalesforceHiringProcess'
 import { GameProvider, useGame } from './components/gamification/GameProvider'
 import { XPBar } from './components/gamification/XPBar'
 import { StreakCounter } from './components/gamification/StreakCounter'
+import { QuickStartGame } from './components/gamification/QuickStartGame'
 
 function AppContent() {
   const gameState = useGame()
@@ -41,7 +40,6 @@ function AppContent() {
       sections: [
         { id: 'about', label: 'About', icon: Info },
         { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-        { id: 'hiring-process', label: 'Salesforce Hiring Process', icon: Users },
       ],
     },
     {
@@ -52,6 +50,7 @@ function AppContent() {
         { id: 'study-guide', label: 'Study Guide', icon: GraduationCap },
         { id: 'lessons', label: 'Lessons', icon: LessonsIcon },
         { id: 'interview-questions', label: 'Interview Questions', icon: MessageSquare },
+        { id: 'leetcode-questions', label: 'LeetCode Questions', icon: Code },
       ],
     },
     {
@@ -60,10 +59,8 @@ function AppContent() {
       icon: Code,
       sections: [
         { id: 'flashcards', label: 'Flashcards', icon: BookOpen },
-        { id: 'frontend-fundamentals', label: 'Frontend Fundamentals', icon: FileCode },
-        { id: 'js-trivia', label: 'JS Trivia Lab', icon: Code },
+        { id: 'javascript-practice', label: 'JavaScript Practice', icon: FileCode },
         { id: 'scheduling', label: 'Scheduling Architect', icon: Database },
-        { id: 'quizzer', label: 'Active Recall Quizzer', icon: BookOpen },
       ],
     },
     {
@@ -83,7 +80,7 @@ function AppContent() {
   // Track tool usage for gamification (only once per session)
   const [usedTools, setUsedTools] = useState(new Set())
   useEffect(() => {
-    const practiceTools = ['frontend-fundamentals', 'js-trivia', 'scheduling', 'quizzer']
+    const practiceTools = ['javascript-practice', 'scheduling', 'flashcards']
     if (practiceTools.includes(activeSection) && !usedTools.has(activeSection)) {
       gameState.actions.toolUsage(activeSection)
       setUsedTools(prev => new Set([...prev, activeSection]))
@@ -292,30 +289,31 @@ function AppContent() {
             <div className="rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800/60 shadow-xl backdrop-blur-xl p-4 sm:p-6 lg:p-8 transition-all duration-300 hover:shadow-2xl">
               {activeSection === 'about' && <About />}
               {activeSection === 'dashboard' && <Dashboard />}
-              {activeSection === 'hiring-process' && <SalesforceHiringProcess />}
               {activeSection === 'study-guide' && <StudyGuide />}
               {activeSection === 'lessons' && <Lessons initialLessonId={navigationParams.lessonId} />}
-              {activeSection === 'ai-tutor' && <AITutor />}
-              {activeSection === 'saved-questions' && <SavedQuestions />}
-              {activeSection === 'frontend-fundamentals' && <FrontendJavaScriptFundamentals />}
               {activeSection === 'interview-questions' && (
                 <SalesforceInterviewQuestions initialCategory={navigationParams.category} />
               )}
+              {activeSection === 'leetcode-questions' && <SalesforceLeetCodeQuestions />}
               {activeSection === 'flashcards' && <Flashcards />}
-              {activeSection === 'js-trivia' && (
-                <JSTriviaLab initialTab={navigationParams.tab} />
+              {activeSection === 'javascript-practice' && (
+                <JavaScriptPractice initialTab={navigationParams.tab} />
               )}
               {activeSection === 'scheduling' && (
                 <SchedulingArchitect initialTab={navigationParams.tab} />
               )}
-              {activeSection === 'quizzer' && <ActiveRecallQuizzer />}
+              {activeSection === 'ai-tutor' && <AITutor />}
+              {activeSection === 'saved-questions' && <SavedQuestions />}
             </div>
           </div>
         </main>
       </div>
       
-      {/* Floating Controls - Bottom Right on Mobile, Bottom Left on Desktop */}
-      <div className="fixed bottom-4 right-4 lg:bottom-6 lg:left-6 z-50 flex flex-col items-center gap-3">
+      {/* Quick Start Game - Bottom Left */}
+      <QuickStartGame />
+
+      {/* Floating Controls - Bottom Right on Mobile, Bottom Right on Desktop */}
+      <div className="fixed bottom-4 right-4 lg:bottom-6 lg:right-6 z-50 flex flex-col items-center gap-3">
         {/* Settings Button */}
         <button
           onClick={() => setIsSettingsOpen((prev) => !prev)}

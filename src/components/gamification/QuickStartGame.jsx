@@ -177,54 +177,206 @@ export function QuickStartGame() {
     
     // Get the correct answer
     const correctAnswer = flashcard.answer
+    const currentCategoryId = flashcard.categoryId
     
-    // Get other flashcards for wrong answers
-    const otherFlashcards = flashcards.filter(f => f.id !== flashcard.id)
+    // Define related categories (e.g., data-skew and ldv are related)
+    const relatedCategories = {
+      'data-skew': ['ldv'], // Data Skew is related to LDV
+      'ldv': ['data-skew'], // LDV is related to Data Skew
+      'css-grid': [], // No related categories for CSS Grid
+      'web-vitals': [], // No related categories for Web Vitals
+      'js-frontend': [], // JavaScript is standalone
+    }
+    
+    // Priority 1: Get flashcards from the same category
+    let candidateFlashcards = flashcards.filter(f => 
+      f.id !== flashcard.id && 
+      f.categoryId === currentCategoryId
+    )
+    
+    // Priority 2: If not enough, include related categories
+    if (candidateFlashcards.length < 3 && relatedCategories[currentCategoryId]) {
+      const relatedIds = relatedCategories[currentCategoryId]
+      const relatedFlashcards = flashcards.filter(f => 
+        f.id !== flashcard.id && 
+        relatedIds.includes(f.categoryId)
+      )
+      candidateFlashcards = [...candidateFlashcards, ...relatedFlashcards]
+    }
+    
+    // Priority 3: If still not enough, use all other flashcards (last resort)
+    if (candidateFlashcards.length < 3) {
+      const otherFlashcards = flashcards.filter(f => 
+        f.id !== flashcard.id && 
+        !candidateFlashcards.some(c => c.id === f.id)
+      )
+      candidateFlashcards = [...candidateFlashcards, ...otherFlashcards]
+    }
+    
+    // Shuffle candidates
+    const shuffledCandidates = [...candidateFlashcards].sort(() => Math.random() - 0.5)
     const wrongAnswers = []
-    
-    // Ensure we always have 3 wrong answers (for a total of 4 options)
-    const neededWrongAnswers = 3
-    const shuffledOthers = [...otherFlashcards].sort(() => Math.random() - 0.5)
     const usedIds = new Set()
+    const neededWrongAnswers = 3
     
-    // Try to get 3 unique wrong answers from other flashcards
-    for (const otherCard of shuffledOthers) {
+    // Check if question asks for something "specifically" - need to filter general answers
+    const questionLower = flashcard.question.toLowerCase()
+    const isSpecificQuestion = questionLower.includes('specifically') || 
+                               questionLower.includes('specific') ||
+                               questionLower.includes('what is the') && questionLower.includes('problem')
+    
+    // Extract wrong answers from candidates
+    for (const otherCard of shuffledCandidates) {
       if (wrongAnswers.length >= neededWrongAnswers) break
       if (usedIds.has(otherCard.id)) continue
       
       usedIds.add(otherCard.id)
       // Use first sentence or key part of answer as wrong option
-      const wrongAnswer = otherCard.answer.split(/[.!?]/)[0] || otherCard.answer.substring(0, 100)
-      const cleanedAnswer = wrongAnswer.trim()
+      // Prefer full first sentence if it's meaningful
+      const sentences = otherCard.answer.split(/[.!?]/).filter(s => s.trim().length > 0)
+      let wrongAnswer = ''
       
-      if (cleanedAnswer && cleanedAnswer.length > 15) {
-        // Avoid duplicate wrong answers
-        if (!wrongAnswers.includes(cleanedAnswer)) {
+      if (sentences.length > 0) {
+        // Use first sentence if it's substantial (at least 20 chars)
+        if (sentences[0].trim().length >= 20) {
+          wrongAnswer = sentences[0].trim()
+        } else if (sentences.length > 1) {
+          // Combine first two sentences if first is short
+          wrongAnswer = sentences.slice(0, 2).join('. ').trim()
+        } else {
+          // Fallback to substring if only one short sentence
+          wrongAnswer = otherCard.answer.substring(0, 120).trim()
+        }
+      } else {
+        wrongAnswer = otherCard.answer.substring(0, 120).trim()
+      }
+      
+      // Ensure we have a meaningful wrong answer (at least 15 chars, max 200)
+      let cleanedAnswer = wrongAnswer.length > 200 
+        ? wrongAnswer.substring(0, 200).trim() + '...'
+        : wrongAnswer.trim()
+      
+      // If question asks for something specific, filter out overly general answers
+      if (isSpecificQuestion) {
+        // Check if this answer is too general (doesn't address the specificity)
+        // For "Account Data Skew specifically", filter out general "Data Skew" definitions
+        const answerLower = cleanedAnswer.toLowerCase()
+        const questionWords = flashcard.question.toLowerCase().match(/\b\w{4,}\b/g) || []
+        
+        // If wrong answer is a general definition that doesn't address the specific question
+        // and doesn't contain key terms from the question, skip it
+        if (questionWords.length > 0) {
+          const hasRelevantTerm = questionWords.some(word => {
+            // Check if answer contains relevant terms (but not just the base term)
+            // e.g., for "Account Data Skew", look for "account" or "10k" or "contacts" etc.
+            const specificTerms = ['account', 'sharing', 'contact', 'opportunity', '10k', 'threshold', 'million']
+            return specificTerms.some(term => answerLower.includes(term)) || 
+                   answerLower.includes(word + ' ') || 
+                   answerLower.includes(' ' + word)
+          })
+          
+          // If it's a general definition and doesn't have relevant terms, prefer answers with more context
+          const isGeneralDefinition = (answerLower.includes('occurs when') || 
+                                       answerLower.includes('refers to') ||
+                                       answerLower.includes('is when')) &&
+                                      !hasRelevantTerm
+          
+          if (isGeneralDefinition) {
+            // Try to get more context from the answer if it's too general
+            if (sentences.length > 1) {
+              // Use more sentences to provide context
+              cleanedAnswer = sentences.slice(0, Math.min(3, sentences.length)).join('. ').trim()
+              if (cleanedAnswer.length > 250) {
+                cleanedAnswer = cleanedAnswer.substring(0, 250).trim() + '...'
+              }
+            } else {
+              // Skip this answer if it's too general and we can't get more context
+              continue
+            }
+          }
+        }
+      }
+      
+      if (cleanedAnswer && cleanedAnswer.length >= 15) {
+        // Avoid duplicate wrong answers (check substring similarity)
+        const isSimilar = wrongAnswers.some(existing => {
+          const similarity = existing.toLowerCase().includes(cleanedAnswer.toLowerCase().substring(0, 20)) ||
+                           cleanedAnswer.toLowerCase().includes(existing.toLowerCase().substring(0, 20))
+          return similarity
+        })
+        
+        // Also check if wrong answer is too similar to correct answer
+        const tooSimilarToCorrect = correctAnswer.toLowerCase().includes(cleanedAnswer.toLowerCase().substring(0, 30)) ||
+                                    cleanedAnswer.toLowerCase().includes(correctAnswer.toLowerCase().substring(0, 30))
+        
+        if (!isSimilar && !tooSimilarToCorrect) {
           wrongAnswers.push(cleanedAnswer)
         }
       }
     }
     
     // Fill remaining slots if we don't have enough unique wrong answers
-    while (wrongAnswers.length < neededWrongAnswers) {
-      // Try to get more from the remaining flashcards
-      const remaining = shuffledOthers.filter(c => !usedIds.has(c.id))
+    while (wrongAnswers.length < neededWrongAnswers && shuffledCandidates.length > usedIds.size) {
+      const remaining = shuffledCandidates.filter(c => !usedIds.has(c.id))
       if (remaining.length > 0) {
         const otherCard = remaining[Math.floor(Math.random() * remaining.length)]
         usedIds.add(otherCard.id)
-        const wrongAnswer = otherCard.answer.split(/[.!?]/)[0] || otherCard.answer.substring(0, 100)
-        const cleanedAnswer = wrongAnswer.trim()
-        if (cleanedAnswer && cleanedAnswer.length > 15 && !wrongAnswers.includes(cleanedAnswer)) {
-          wrongAnswers.push(cleanedAnswer)
+        const sentences = otherCard.answer.split(/[.!?]/).filter(s => s.trim().length > 0)
+        let wrongAnswer = sentences.length > 0 
+          ? sentences[0].trim() 
+          : otherCard.answer.substring(0, 120).trim()
+        
+        // Apply same filtering logic for specific questions
+        let cleanedAnswer = wrongAnswer.length > 200 
+          ? wrongAnswer.substring(0, 200).trim() + '...'
+          : wrongAnswer.trim()
+        
+        if (isSpecificQuestion) {
+          const answerLower = cleanedAnswer.toLowerCase()
+          const questionWords = flashcard.question.toLowerCase().match(/\b\w{4,}\b/g) || []
+          
+          if (questionWords.length > 0) {
+            const hasRelevantTerm = questionWords.some(word => {
+              const specificTerms = ['account', 'sharing', 'contact', 'opportunity', '10k', 'threshold', 'million']
+              return specificTerms.some(term => answerLower.includes(term)) || 
+                     answerLower.includes(word + ' ') || 
+                     answerLower.includes(' ' + word)
+            })
+            
+            const isGeneralDefinition = (answerLower.includes('occurs when') || 
+                                         answerLower.includes('refers to') ||
+                                         answerLower.includes('is when')) &&
+                                        !hasRelevantTerm
+            
+            if (isGeneralDefinition && sentences.length > 1) {
+              cleanedAnswer = sentences.slice(0, Math.min(3, sentences.length)).join('. ').trim()
+              if (cleanedAnswer.length > 250) {
+                cleanedAnswer = cleanedAnswer.substring(0, 250).trim() + '...'
+              }
+            } else if (isGeneralDefinition) {
+              continue // Skip this answer
+            }
+          }
+        }
+          
+        if (cleanedAnswer && cleanedAnswer.length >= 15) {
+          const isSimilar = wrongAnswers.some(existing => {
+            return existing.toLowerCase().includes(cleanedAnswer.toLowerCase().substring(0, 20)) ||
+                   cleanedAnswer.toLowerCase().includes(existing.toLowerCase().substring(0, 20))
+          })
+          const tooSimilarToCorrect = correctAnswer.toLowerCase().includes(cleanedAnswer.toLowerCase().substring(0, 30)) ||
+                                      cleanedAnswer.toLowerCase().includes(correctAnswer.toLowerCase().substring(0, 30))
+          
+          if (!isSimilar && !tooSimilarToCorrect) {
+            wrongAnswers.push(cleanedAnswer)
+          }
         }
       } else {
-        // Generate generic fallback options if we run out of flashcards
-        wrongAnswers.push(`Answer option ${wrongAnswers.length + 1}`)
+        break
       }
     }
     
     // Create options: correct answer + 3 wrong answers (always 4 total)
-    // Use full answers without truncation
     const options = [
       { id: 'correct', text: correctAnswer.trim(), isCorrect: true }
     ]
@@ -965,7 +1117,46 @@ export function QuickStartGame() {
                                           )}
                                         </div>
                                         <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 leading-relaxed whitespace-normal break-words">
-                                          {option.text}
+                                          {(() => {
+                                            // Parse inline code (text within backticks)
+                                            const parts = []
+                                            const text = option.text
+                                            const codeRegex = /`([^`]+)`/g
+                                            let lastIndex = 0
+                                            let match
+                                            let key = 0
+                                            
+                                            while ((match = codeRegex.exec(text)) !== null) {
+                                              // Add text before the code
+                                              if (match.index > lastIndex) {
+                                                parts.push(
+                                                  <span key={key++}>
+                                                    {text.substring(lastIndex, match.index)}
+                                                  </span>
+                                                )
+                                              }
+                                              // Add the code with styling
+                                              parts.push(
+                                                <code
+                                                  key={key++}
+                                                  className="bg-gray-100 dark:bg-slate-700 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded text-xs font-mono"
+                                                >
+                                                  {match[1]}
+                                                </code>
+                                              )
+                                              lastIndex = match.index + match[0].length
+                                            }
+                                            // Add remaining text after last code
+                                            if (lastIndex < text.length) {
+                                              parts.push(
+                                                <span key={key++}>
+                                                  {text.substring(lastIndex)}
+                                                </span>
+                                              )
+                                            }
+                                            // If no code found, return original text
+                                            return parts.length > 0 ? parts : text
+                                          })()}
                                         </span>
                                       </div>
                                     </button>
@@ -1008,27 +1199,84 @@ export function QuickStartGame() {
 
                             {/* Feedback after submission */}
                             {isCorrect !== null && (
-                              <div className={`p-4 rounded-lg flex items-center gap-3 ${
-                                isCorrect 
-                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-300 dark:border-green-700' 
-                                  : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-2 border-red-300 dark:border-red-700'
-                              }`}>
-                                {isCorrect ? (
-                                  <CheckCircle className="w-6 h-6 flex-shrink-0" />
-                                ) : (
-                                  <X className="w-6 h-6 flex-shrink-0" />
-                                )}
-                                <div className="flex-1">
-                                  <div className="font-semibold mb-1">
-                                    {isCorrect ? '🎉 Excellent! You got it right!' : '❌ Not quite. Review the answer below.'}
-                                  </div>
-                                  {!isCorrect && (
-                                    <div className="text-sm opacity-90">
-                                      Try again or view the answer to learn more.
-                                    </div>
+                              <>
+                                <div className={`p-4 rounded-lg flex items-center gap-3 ${
+                                  isCorrect 
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-300 dark:border-green-700' 
+                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-2 border-red-300 dark:border-red-700'
+                                }`}>
+                                  {isCorrect ? (
+                                    <CheckCircle className="w-6 h-6 flex-shrink-0" />
+                                  ) : (
+                                    <X className="w-6 h-6 flex-shrink-0" />
                                   )}
+                                  <div className="flex-1">
+                                    <div className="font-semibold mb-1">
+                                      {isCorrect ? '🎉 Excellent! You got it right!' : '❌ Not quite. Review the answer below.'}
+                                    </div>
+                                    {!isCorrect && (
+                                      <div className="text-sm opacity-90">
+                                        Try again or view the answer to learn more.
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
+                                
+                                {/* Continue Button for correct answers */}
+                                {isCorrect && (
+                                  <button
+                                    onClick={() => {
+                                      // Move to next card
+                                      setChallengeProgress(prev => {
+                                        const newCompleted = prev.completed + 1
+                                        
+                                        if (newCompleted >= currentChallenge.count) {
+                                          setTimeout(() => {
+                                            handleChallengeComplete(true)
+                                          }, 100)
+                                        } else {
+                                          // Load next flashcard with balanced category selection
+                                          const selectedCard = selectNextFlashcard()
+                                          if (selectedCard) {
+                                            setCurrentFlashcard(selectedCard)
+                                            generateMultipleChoiceOptions(selectedCard)
+                                            // Update category counts
+                                            const category = getFlashcardCategory(selectedCard)
+                                            setLevelCategoryCounts(prev => ({
+                                              ...prev,
+                                              [category]: prev[category] + 1
+                                            }))
+                                          }
+                                          setShowAnswer(false)
+                                          setUserAnswer('')
+                                          setSelectedChoice(null)
+                                          setIsCorrect(null)
+                                          setHintLevel(0)
+                                          setShowHint(false)
+                                        }
+                                        
+                                        return {
+                                          ...prev,
+                                          completed: newCompleted,
+                                        }
+                                      })
+                                    }}
+                                    className="w-full py-3 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold transition-all flex items-center justify-center gap-2"
+                                  >
+                                    {challengeProgress.completed + 1 >= currentChallenge.count ? (
+                                      <>
+                                        <Trophy className="w-5 h-5" />
+                                        Complete Challenge
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Play className="w-5 h-5" />
+                                        Next Question
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         )}

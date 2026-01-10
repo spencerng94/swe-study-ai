@@ -1640,7 +1640,7 @@ function LessonDetail({ lesson, onBack }) {
               {section.title}
             </h2>
             <div className="prose prose-sm max-w-none">
-              <div className="text-gray-700 leading-relaxed dark:text-slate-300">
+              <div className="text-black dark:text-slate-200 leading-relaxed">
                 {(() => {
                   // First, extract all code blocks from the content
                   const content = section.content
@@ -1704,7 +1704,7 @@ function LessonDetail({ lesson, onBack }) {
                             lineNumberStyle={{
                               minWidth: '3em',
                               paddingRight: '1em',
-                              color: '#6b7280',
+                              color: '#9ca3af',
                               userSelect: 'none',
                             }}
                             codeTagProps={{

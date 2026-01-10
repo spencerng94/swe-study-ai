@@ -318,6 +318,13 @@ function About() {
                 sectionId="lessons"
               />
               <SectionCard
+                title="JavaScript Fundamentals"
+                description="Array methods cheat sheet (.map, .reduce, .filter), closures, and JavaScript core concepts with code examples."
+                icon={Code}
+                sectionId="lessons"
+                lessonId="javascript-fundamentals"
+              />
+              <SectionCard
                 title="Interview Questions"
                 description="Real Salesforce interview questions with detailed answers. Includes System Design, Frontend, and LeetCode categories."
                 icon={MessageSquare}
@@ -410,18 +417,20 @@ function About() {
   )
 }
 
-function SectionCard({ title, description, icon: Icon, sectionId }) {
-  const navigateToSection = (sectionId) => {
+function SectionCard({ title, description, icon: Icon, sectionId, lessonId }) {
+  const navigateToSection = (sectionId, lessonId) => {
     if (sectionId) {
-      window.dispatchEvent(new CustomEvent('navigate', { 
-        detail: { section: sectionId } 
-      }))
+      const detail = { section: sectionId }
+      if (lessonId) {
+        detail.lessonId = lessonId
+      }
+      window.dispatchEvent(new CustomEvent('navigate', { detail }))
     }
   }
 
   return (
     <button
-      onClick={() => sectionId && navigateToSection(sectionId)}
+      onClick={() => sectionId && navigateToSection(sectionId, lessonId)}
       className={`w-full text-left bg-gray-50 border border-gray-200 rounded-lg p-4 hover:border-salesforce-blue transition-colors ${sectionId ? 'cursor-pointer' : 'cursor-default'}`}
     >
       <div className="flex items-start gap-3">

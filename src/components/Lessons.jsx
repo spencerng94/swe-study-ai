@@ -1640,88 +1640,147 @@ function LessonDetail({ lesson, onBack }) {
               {section.title}
             </h2>
             <div className="prose prose-sm max-w-none">
-              <div className="text-gray-700 leading-relaxed">
-                {section.content.split('\n\n').map((paragraph, pIdx) => {
-                  // Handle code blocks
-                  if (paragraph.trim().startsWith('```')) {
-                    const codeMatch = paragraph.match(/```(\w+)?\n([\s\S]*?)```/)
-                    if (codeMatch) {
-                      const language = codeMatch[1] || 'javascript'
-                      const code = codeMatch[2].trim()
-                      return (
-                        <div key={pIdx} className="my-4 rounded-lg overflow-hidden border border-gray-300">
-                          <SyntaxHighlighter
-                            language={language}
-                            style={vscDarkPlus}
-                            customStyle={{
-                              margin: 0,
-                              padding: '1rem',
-                              fontSize: '0.875rem',
-                              lineHeight: '1.5',
-                            }}
-                            showLineNumbers={true}
-                          >
-                            {code}
-                          </SyntaxHighlighter>
-                        </div>
-                      )
+              <div className="text-gray-700 leading-relaxed dark:text-slate-300">
+                {(() => {
+                  // First, extract all code blocks from the content
+                  const content = section.content
+                  const parts = []
+                  let lastIndex = 0
+                  let partKey = 0
+                  
+                  // Find all code blocks using a more robust regex
+                  // Handles: ```language\ncode``` or ```\ncode``` or ```language\ncode```
+                  const codeBlockRegex = /```(\w+)?\s*\n([\s\S]*?)```/g
+                  let match
+                  
+                  while ((match = codeBlockRegex.exec(content)) !== null) {
+                    // Add text before the code block
+                    if (match.index > lastIndex) {
+                      const textBefore = content.substring(lastIndex, match.index).trim()
+                      if (textBefore) {
+                        parts.push({ type: 'text', content: textBefore, key: partKey++ })
+                      }
+                    }
+                    
+                    // Add the code block
+                    const language = match[1] || 'javascript'
+                    const code = match[2].trim()
+                    parts.push({ type: 'code', language, code, key: partKey++ })
+                    
+                    lastIndex = match.index + match[0].length
+                  }
+                  
+                  // Add remaining text after last code block
+                  if (lastIndex < content.length) {
+                    const textAfter = content.substring(lastIndex).trim()
+                    if (textAfter) {
+                      parts.push({ type: 'text', content: textAfter, key: partKey++ })
                     }
                   }
                   
-                  // Handle regular paragraphs with inline formatting
+                  // If no code blocks found, treat entire content as text
+                  if (parts.length === 0) {
+                    parts.push({ type: 'text', content: content, key: partKey++ })
+                  }
+                  
+                  // Render each part
+                  const renderedParts = []
+                  parts.forEach((part) => {
+                    if (part.type === 'code') {
+                      renderedParts.push(
+                        <div key={part.key} className="my-6 rounded-lg overflow-hidden border border-gray-300 dark:border-slate-700 shadow-sm bg-gray-900 dark:bg-slate-950">
+                          <SyntaxHighlighter
+                            language={part.language}
+                            style={vscDarkPlus}
+                            customStyle={{
+                              margin: 0,
+                              padding: '1.25rem',
+                              fontSize: '0.875rem',
+                              lineHeight: '1.6',
+                              fontFamily: 'Monaco, Menlo, "Ubuntu Mono", "Courier New", monospace',
+                              background: 'transparent',
+                            }}
+                            showLineNumbers={true}
+                            lineNumberStyle={{
+                              minWidth: '3em',
+                              paddingRight: '1em',
+                              color: '#6b7280',
+                              userSelect: 'none',
+                            }}
+                            codeTagProps={{
+                              style: {
+                                fontFamily: 'inherit',
+                              }
+                            }}
+                          >
+                            {part.code}
+                          </SyntaxHighlighter>
+                        </div>
+                      )
+                    } else {
+                      // Render text content with formatting
+                      part.content.split('\n\n').forEach((paragraph, pIdx) => {
+                        if (!paragraph.trim()) return
+                        
                   const lines = paragraph.split('\n')
-                  return (
-                    <div key={pIdx} className="mb-4">
+                        renderedParts.push(
+                          <div key={`${part.key}-${pIdx}`} className="mb-4">
                       {lines.map((line, lIdx) => {
                         if (line.trim() === '') return null
                         
                         // Process inline formatting
-                        const parts = []
-                        let currentIndex = 0
+                              const lineParts = []
                         let key = 0
                         
                         // Match **bold**, `code`, and regular text
-                        const boldRegex = /\*\*(.*?)\*\*/g
-                        const codeRegex = /`([^`]+)`/g
-                        let lastIndex = 0
                         const matches = []
                         
-                        // Find all matches
-                        let match
-                        while ((match = boldRegex.exec(line)) !== null) {
-                          matches.push({ type: 'bold', start: match.index, end: match.index + match[0].length, content: match[1] })
-                        }
-                        while ((match = codeRegex.exec(line)) !== null) {
-                          matches.push({ type: 'code', start: match.index, end: match.index + match[0].length, content: match[1] })
+                              // Find all bold matches
+                              let boldRegex = /\*\*(.*?)\*\*/g
+                              let boldMatch
+                              while ((boldMatch = boldRegex.exec(line)) !== null) {
+                                matches.push({ type: 'bold', start: boldMatch.index, end: boldMatch.index + boldMatch[0].length, content: boldMatch[1] })
+                              }
+                              
+                              // Find all code matches (using new regex instance)
+                              let codeRegex = /`([^`]+)`/g
+                              let codeMatch
+                              while ((codeMatch = codeRegex.exec(line)) !== null) {
+                                matches.push({ type: 'code', start: codeMatch.index, end: codeMatch.index + codeMatch[0].length, content: codeMatch[1] })
                         }
                         
                         matches.sort((a, b) => a.start - b.start)
                         
                         let textIndex = 0
-                        matches.forEach((m, idx) => {
+                              matches.forEach((m) => {
                           if (m.start > textIndex) {
-                            parts.push(<span key={key++}>{line.substring(textIndex, m.start)}</span>)
+                                  lineParts.push(<span key={key++}>{line.substring(textIndex, m.start)}</span>)
                           }
                           if (m.type === 'bold') {
-                            parts.push(<strong key={key++} className="text-salesforce-dark-blue">{m.content}</strong>)
+                                  lineParts.push(<strong key={key++} className="text-salesforce-dark-blue dark:text-blue-400 font-semibold">{m.content}</strong>)
                           } else if (m.type === 'code') {
-                            parts.push(<code key={key++} className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono">{m.content}</code>)
+                                  lineParts.push(<code key={key++} className="bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-sm font-mono text-purple-600 dark:text-purple-400">{m.content}</code>)
                           }
                           textIndex = m.end
                         })
                         if (textIndex < line.length) {
-                          parts.push(<span key={key++}>{line.substring(textIndex)}</span>)
+                                lineParts.push(<span key={key++}>{line.substring(textIndex)}</span>)
                         }
                         
-                        if (parts.length === 0) {
-                          parts.push(<span key={key++}>{line}</span>)
+                              if (lineParts.length === 0) {
+                                lineParts.push(<span key={key++}>{line}</span>)
                         }
                         
-                        return <p key={lIdx} className="mb-2">{parts}</p>
+                              return <p key={lIdx} className="mb-2 leading-relaxed">{lineParts}</p>
                       })}
                     </div>
                   )
-                })}
+                      })
+                    }
+                  })
+                  
+                  return renderedParts
+                })()}
               </div>
             </div>
           </div>

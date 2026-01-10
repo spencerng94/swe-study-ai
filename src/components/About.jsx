@@ -116,11 +116,11 @@ function About() {
               <ul className="list-disc list-inside text-gray-700 space-y-1 mb-3 ml-4">
                 <li>
                   <button
-                    onClick={() => navigateToSection('js-trivia')}
+                    onClick={() => navigateToSection('javascript-practice')}
                     className="text-salesforce-blue hover:text-salesforce-dark-blue hover:underline"
                   >
-                    <strong>JS Trivia Lab:</strong>
-                  </button> Interactive playgrounds for closures, event loop, pure functions
+                    <strong>JavaScript Practice:</strong>
+                  </button> Interactive lessons and playgrounds for JavaScript and React concepts
                 </li>
                 <li>
                   <button
@@ -132,11 +132,11 @@ function About() {
                 </li>
                 <li>
                   <button
-                    onClick={() => navigateToSection('frontend-fundamentals')}
+                    onClick={() => navigateToSection('flashcards')}
                     className="text-salesforce-blue hover:text-salesforce-dark-blue hover:underline"
                   >
-                    <strong>Frontend Fundamentals:</strong>
-                  </button> Master core JavaScript and React concepts
+                    <strong>Flashcards:</strong>
+                  </button> Active recall practice with categorized flashcard decks
                 </li>
               </ul>
               <div className="bg-salesforce-light-blue border-l-4 border-salesforce-blue p-3 rounded">
@@ -190,25 +190,16 @@ function About() {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <Sparkles className="w-6 h-6 text-salesforce-blue" />
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => navigateToSection('ai-tutor')}
-                    className="font-bold text-lg text-salesforce-dark-blue hover:text-salesforce-blue transition-colors flex items-center gap-2"
-                  >
-                    Ask AI Tutor
-                  </button>
-                  <span className="text-gray-400">&</span>
-                  <button
-                    onClick={() => navigateToSection('quizzer')}
-                    className="font-bold text-lg text-salesforce-dark-blue hover:text-salesforce-blue transition-colors flex items-center gap-2"
-                  >
-                    Test Knowledge
-                  </button>
-                  <ExternalLink className="w-4 h-4 text-salesforce-gray" />
-                </div>
+                <button
+                  onClick={() => navigateToSection('ai-tutor')}
+                  className="font-bold text-lg text-salesforce-dark-blue hover:text-salesforce-blue transition-colors flex items-center gap-2"
+                >
+                  Ask AI Tutor
+                  <ExternalLink className="w-4 h-4" />
+                </button>
               </div>
               <p className="text-gray-700 mb-3">
-                Use AI Tutor to clarify concepts or ask follow-up questions. Save important Q&As for review. Test yourself with Active Recall Quizzer flashcards.
+                Use AI Tutor to clarify concepts or ask follow-up questions. Save important Q&As for review. Test yourself with Flashcards for active recall practice.
               </p>
               <div className="bg-salesforce-light-blue border-l-4 border-salesforce-blue p-3 rounded">
                 <p className="text-sm text-salesforce-dark-blue">
@@ -246,7 +237,7 @@ function About() {
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Test with Flashcards</span>
+                  <span>Practice with Interactive Tools</span>
                 </div>
               </div>
             </div>
@@ -267,7 +258,7 @@ function About() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Target className="w-4 h-4 text-salesforce-blue" />
-                  <span>Frontend Fundamentals for JS/React</span>
+                  <span>JavaScript Practice for JS/React concepts</span>
                 </div>
               </div>
             </div>
@@ -328,7 +319,7 @@ function About() {
               />
               <SectionCard
                 title="Interview Questions"
-                description="Real Salesforce interview questions with detailed answers."
+                description="Real Salesforce interview questions with detailed answers. Includes System Design, Frontend, and LeetCode categories."
                 icon={MessageSquare}
                 sectionId="interview-questions"
               />
@@ -341,18 +332,12 @@ function About() {
               <Code className="w-4 h-4" />
               Practice Tools
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <SectionCard
-                title="Frontend Fundamentals"
-                description="Master JavaScript and React concepts with interactive examples."
-                icon={Target}
-                sectionId="frontend-fundamentals"
-              />
-              <SectionCard
-                title="JS Trivia Lab"
-                description="Interactive playgrounds: closures, event loop, pure functions."
+                title="JavaScript Practice"
+                description="Master JavaScript and React with interactive lessons and playgrounds (closures, event loop, pure functions)."
                 icon={Code}
-                sectionId="js-trivia"
+                sectionId="javascript-practice"
               />
               <SectionCard
                 title="Scheduling Architect"
@@ -361,10 +346,10 @@ function About() {
                 sectionId="scheduling"
               />
               <SectionCard
-                title="Active Recall Quizzer"
-                description="Flashcards for Salesforce topics: LDV, Data Skew, CSS Grid, INP."
+                title="Flashcards"
+                description="Active recall practice with categorized flashcard decks for Salesforce topics."
                 icon={BookOpen}
-                sectionId="quizzer"
+                sectionId="flashcards"
               />
             </div>
           </div>

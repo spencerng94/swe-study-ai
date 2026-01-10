@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { CheckCircle, XCircle, AlertCircle, Code2 } from 'lucide-react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 function PureFunctionChecker() {
   const [code, setCode] = useState(`function add(a, b) {
@@ -174,22 +176,50 @@ function PureFunctionChecker() {
       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
         <h3 className="font-semibold text-salesforce-dark-blue mb-3">Example Functions:</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white p-4 rounded border border-green-300">
-            <p className="font-semibold text-green-800 mb-2">✓ Pure Function:</p>
-            <pre className="text-xs bg-gray-50 p-3 rounded overflow-x-auto">
-              <code>{`function add(a, b) {
+          <div className="bg-white rounded border border-green-300 overflow-hidden">
+            <div className="px-4 py-2 bg-green-50 border-b border-green-300">
+              <p className="font-semibold text-green-800">✓ Pure Function:</p>
+            </div>
+            <div className="rounded-b-lg overflow-hidden">
+              <SyntaxHighlighter
+                language="javascript"
+                style={vscDarkPlus}
+                customStyle={{
+                  margin: 0,
+                  padding: '1rem',
+                  fontSize: '0.875rem',
+                  lineHeight: '1.5',
+                }}
+                showLineNumbers={true}
+              >
+                {`function add(a, b) {
   return a + b;
-}`}</code>
-            </pre>
+}`}
+              </SyntaxHighlighter>
+            </div>
           </div>
-          <div className="bg-white p-4 rounded border border-red-300">
-            <p className="font-semibold text-red-800 mb-2">✗ Impure Function:</p>
-            <pre className="text-xs bg-gray-50 p-3 rounded overflow-x-auto">
-              <code>{`function add(a, b) {
+          <div className="bg-white rounded border border-red-300 overflow-hidden">
+            <div className="px-4 py-2 bg-red-50 border-b border-red-300">
+              <p className="font-semibold text-red-800">✗ Impure Function:</p>
+            </div>
+            <div className="rounded-b-lg overflow-hidden">
+              <SyntaxHighlighter
+                language="javascript"
+                style={vscDarkPlus}
+                customStyle={{
+                  margin: 0,
+                  padding: '1rem',
+                  fontSize: '0.875rem',
+                  lineHeight: '1.5',
+                }}
+                showLineNumbers={true}
+              >
+                {`function add(a, b) {
   console.log(a, b);
   return a + b;
-}`}</code>
-            </pre>
+}`}
+              </SyntaxHighlighter>
+            </div>
           </div>
         </div>
       </div>

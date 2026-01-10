@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Play, RotateCcw, Info } from 'lucide-react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 function ClosurePlayground() {
   const [counters, setCounters] = useState([])
@@ -135,8 +137,19 @@ function ClosurePlayground() {
 
       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
         <h3 className="font-semibold text-salesforce-dark-blue mb-2">Code Explanation:</h3>
-        <pre className="text-xs bg-white p-4 rounded border border-gray-200 overflow-x-auto">
-          <code>{`function createCounter() {
+        <div className="rounded-lg overflow-hidden border border-gray-300">
+          <SyntaxHighlighter
+            language="javascript"
+            style={vscDarkPlus}
+            customStyle={{
+              margin: 0,
+              padding: '1rem',
+              fontSize: '0.875rem',
+              lineHeight: '1.5',
+            }}
+            showLineNumbers={true}
+          >
+            {`function createCounter() {
   let count = 0; // Private variable in closure scope
   
   return {
@@ -149,8 +162,9 @@ function ClosurePlayground() {
 // Each instance has its own closure with its own 'count'
 const counter1 = createCounter();
 const counter2 = createCounter();
-// counter1 and counter2 have separate 'count' variables!`}</code>
-        </pre>
+// counter1 and counter2 have separate 'count' variables!`}
+          </SyntaxHighlighter>
+        </div>
       </div>
     </div>
   )

@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, Code, Database, BookOpen, MessageSquare, GraduationCap, FileCode, GraduationCap as LessonsIcon, Sparkles, Bookmark, Info, BarChart3, ChevronDown, ChevronRight, Settings, Moon, Sun, SlidersHorizontal, X, Menu, Users, Network, Target } from 'lucide-react'
+import { LayoutDashboard, Code, Database, BookOpen, MessageSquare, GraduationCap, FileCode, GraduationCap as LessonsIcon, Sparkles, Bookmark, Info, BarChart3, ChevronDown, ChevronRight, Settings, Moon, Sun, SlidersHorizontal, X, Menu, Users, Network, Target, Zap, BookOpen as DefinitionsIcon, Lightbulb } from 'lucide-react'
 import SchedulingArchitect from './components/SchedulingArchitect'
 import SalesforceInterviewQuestions from './components/SalesforceInterviewQuestions'
 import SalesforceLeetCodeQuestions from './components/SalesforceLeetCodeQuestions'
 import StudyGuide from './components/StudyGuide'
+import { GameMode } from './components/gamification/GameMode'
+import SavedGameQuestions from './components/gamification/SavedGameQuestions'
 import Flashcards from './components/Flashcards'
 import JavaScriptPractice from './components/JavaScriptPractice'
 import Lessons from './components/Lessons'
 import AITutor from './components/AITutor'
 import SavedQuestions from './components/SavedQuestions'
 import About from './components/About'
+import Definitions from './components/Definitions'
+import KeyConcepts from './components/KeyConcepts'
 import InterviewCountdown from './components/InterviewCountdown'
 import ChatWidget from './components/ChatWidget'
 import Dashboard from './components/Dashboard'
@@ -22,7 +26,7 @@ function AppContent() {
   const gameState = useGame()
   const [activeSection, setActiveSection] = useState('about')
   const [navigationParams, setNavigationParams] = useState({})
-  const [expandedGroups, setExpandedGroups] = useState(() => new Set(['getting-started', 'study-materials']))
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set(['getting-started', 'study-materials', 'game-mode']))
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const getPreferredTheme = () => {
@@ -51,6 +55,8 @@ function AppContent() {
         { id: 'lessons', label: 'Lessons', icon: LessonsIcon },
         { id: 'interview-questions', label: 'Interview Questions', icon: MessageSquare },
         { id: 'leetcode-questions', label: 'LeetCode Questions', icon: Code },
+        { id: 'definitions', label: 'Definitions', icon: DefinitionsIcon },
+        { id: 'key-concepts', label: 'Key Concepts', icon: Lightbulb },
       ],
     },
     {
@@ -70,6 +76,15 @@ function AppContent() {
       sections: [
         { id: 'ai-tutor', label: 'AI Tutor', icon: Sparkles },
         { id: 'saved-questions', label: 'Saved Questions', icon: Bookmark },
+      ],
+    },
+    {
+      id: 'game-mode',
+      label: 'GAME MODE',
+      icon: Zap,
+      sections: [
+        { id: 'game-mode', label: 'Game Mode', icon: Zap },
+        { id: 'saved-game-questions', label: 'Saved Questions', icon: Bookmark },
       ],
     },
   ]
@@ -189,13 +204,24 @@ function AppContent() {
                 {/* Group Header */}
                 <button
                   onClick={() => {
-                    const newExpanded = new Set(expandedGroups)
-                    if (newExpanded.has(group.id)) {
-                      newExpanded.delete(group.id)
+                    // If group has only one section, navigate directly
+                    if (group.sections.length === 1) {
+                      setActiveSection(group.sections[0].id)
+                      setNavigationParams({})
+                      // Also expand to show it's active
+                      if (!expandedGroups.has(group.id)) {
+                        setExpandedGroups(new Set([...expandedGroups, group.id]))
+                      }
                     } else {
-                      newExpanded.add(group.id)
+                      // Toggle expansion for groups with multiple sections
+                      const newExpanded = new Set(expandedGroups)
+                      if (newExpanded.has(group.id)) {
+                        newExpanded.delete(group.id)
+                      } else {
+                        newExpanded.add(group.id)
+                      }
+                      setExpandedGroups(newExpanded)
                     }
-                    setExpandedGroups(newExpanded)
                   }}
                   className={`w-full flex items-center gap-2.5 px-3.5 py-3 sm:py-2.5 rounded-xl font-semibold text-xs uppercase tracking-wider transition-all duration-200 text-left group touch-manipulation ${
                     hasActiveSection
@@ -295,6 +321,10 @@ function AppContent() {
                 <SalesforceInterviewQuestions initialCategory={navigationParams.category} />
               )}
               {activeSection === 'leetcode-questions' && <SalesforceLeetCodeQuestions />}
+              {activeSection === 'definitions' && <Definitions />}
+              {activeSection === 'key-concepts' && <KeyConcepts />}
+              {activeSection === 'game-mode' && <GameMode />}
+              {activeSection === 'saved-game-questions' && <SavedGameQuestions />}
               {activeSection === 'flashcards' && <Flashcards />}
               {activeSection === 'javascript-practice' && (
                 <JavaScriptPractice initialTab={navigationParams.tab} />

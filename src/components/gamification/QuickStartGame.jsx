@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Zap, Trophy, Star, CheckCircle, X, Play, Target, TrendingUp, Sparkles, Award, Lightbulb, Eye } from 'lucide-react'
+import { Zap, Trophy, Star, CheckCircle, X, Play, Target, TrendingUp, Sparkles, Award, Lightbulb, Eye, Type, List, Bookmark, BookmarkCheck } from 'lucide-react'
+import { savedGameFlashcardsService } from '../../lib/dataService'
 import { useGame } from './GameProvider'
 import { flashcards } from '../../data/flashcards'
 
@@ -164,14 +165,258 @@ export function QuickStartGame() {
   const [isCorrect, setIsCorrect] = useState(null)
   const [hintLevel, setHintLevel] = useState(0) // 0 = no hint, 1 = keywords, 2 = partial
   const [showHint, setShowHint] = useState(false)
+  const [answerMode, setAnswerMode] = useState('free') // 'free' or 'multiple-choice'
+  const [multipleChoiceOptions, setMultipleChoiceOptions] = useState([])
+  const [selectedChoice, setSelectedChoice] = useState(null)
+  const [isSaved, setIsSaved] = useState(false)
+  const [levelCategoryCounts, setLevelCategoryCounts] = useState({ systemDesign: 0, frontend: 0 })
+
+  // Generate multiple choice options from flashcards
+  const generateMultipleChoiceOptions = useCallback((flashcard) => {
+    if (!flashcard) return
+    
+    // Get the correct answer
+    const correctAnswer = flashcard.answer
+    
+    // Get other flashcards for wrong answers
+    const otherFlashcards = flashcards.filter(f => f.id !== flashcard.id)
+    const wrongAnswers = []
+    
+    // Ensure we always have 3 wrong answers (for a total of 4 options)
+    const neededWrongAnswers = 3
+    const shuffledOthers = [...otherFlashcards].sort(() => Math.random() - 0.5)
+    const usedIds = new Set()
+    
+    // Try to get 3 unique wrong answers from other flashcards
+    for (const otherCard of shuffledOthers) {
+      if (wrongAnswers.length >= neededWrongAnswers) break
+      if (usedIds.has(otherCard.id)) continue
+      
+      usedIds.add(otherCard.id)
+      // Use first sentence or key part of answer as wrong option
+      const wrongAnswer = otherCard.answer.split(/[.!?]/)[0] || otherCard.answer.substring(0, 100)
+      const cleanedAnswer = wrongAnswer.trim()
+      
+      if (cleanedAnswer && cleanedAnswer.length > 15) {
+        // Avoid duplicate wrong answers
+        if (!wrongAnswers.includes(cleanedAnswer)) {
+          wrongAnswers.push(cleanedAnswer)
+        }
+      }
+    }
+    
+    // Fill remaining slots if we don't have enough unique wrong answers
+    while (wrongAnswers.length < neededWrongAnswers) {
+      // Try to get more from the remaining flashcards
+      const remaining = shuffledOthers.filter(c => !usedIds.has(c.id))
+      if (remaining.length > 0) {
+        const otherCard = remaining[Math.floor(Math.random() * remaining.length)]
+        usedIds.add(otherCard.id)
+        const wrongAnswer = otherCard.answer.split(/[.!?]/)[0] || otherCard.answer.substring(0, 100)
+        const cleanedAnswer = wrongAnswer.trim()
+        if (cleanedAnswer && cleanedAnswer.length > 15 && !wrongAnswers.includes(cleanedAnswer)) {
+          wrongAnswers.push(cleanedAnswer)
+        }
+      } else {
+        // Generate generic fallback options if we run out of flashcards
+        wrongAnswers.push(`Answer option ${wrongAnswers.length + 1}`)
+      }
+    }
+    
+    // Create options: correct answer + 3 wrong answers (always 4 total)
+    // Use full answers without truncation
+    const options = [
+      { id: 'correct', text: correctAnswer.trim(), isCorrect: true }
+    ]
+    
+    // Add exactly 3 wrong answers
+    wrongAnswers.slice(0, 3).forEach((wrong, idx) => {
+      options.push({
+        id: `wrong-${idx}`,
+        text: wrong.trim(),
+        isCorrect: false
+      })
+    })
+    
+    // Shuffle options
+    const shuffled = options.sort(() => Math.random() - 0.5)
+    setMultipleChoiceOptions(shuffled)
+    setSelectedChoice(null)
+  }, [])
+
+  // Categorize flashcards into System Design and Frontend Fundamentals
+  const getFlashcardCategory = (flashcard) => {
+    const systemDesignCategories = ['ldv', 'data-skew']
+    return systemDesignCategories.includes(flashcard.categoryId) ? 'systemDesign' : 'frontend'
+  }
+
+  // Get flashcards by category
+  const getFlashcardsByCategory = (category) => {
+    if (category === 'systemDesign') {
+      return flashcards.filter(f => ['ldv', 'data-skew'].includes(f.categoryId))
+    } else {
+      return flashcards.filter(f => !['ldv', 'data-skew'].includes(f.categoryId))
+    }
+  }
+
+  // Select next flashcard ensuring balanced categories
+  const selectNextFlashcard = useCallback(() => {
+    if (!currentChallenge || currentChallenge.type !== 'flashcards') return null
+
+    const totalNeeded = currentChallenge.count
+    const completed = challengeProgress.completed
+    const remaining = totalNeeded - completed
+
+    // Calculate target for each category
+    const targetEach = Math.ceil(totalNeeded / 2)
+    const systemDesignNeeded = Math.max(0, targetEach - levelCategoryCounts.systemDesign)
+    const frontendNeeded = Math.max(0, targetEach - levelCategoryCounts.frontend)
+
+    // Determine which category to pick from
+    let categoryToUse = null
+    if (systemDesignNeeded > 0 && frontendNeeded > 0) {
+      // Both needed - alternate based on which has less
+      categoryToUse = levelCategoryCounts.systemDesign <= levelCategoryCounts.frontend ? 'systemDesign' : 'frontend'
+    } else if (systemDesignNeeded > 0) {
+      categoryToUse = 'systemDesign'
+    } else if (frontendNeeded > 0) {
+      categoryToUse = 'frontend'
+    } else {
+      // Both targets met, but still have remaining - alternate
+      categoryToUse = levelCategoryCounts.systemDesign <= levelCategoryCounts.frontend ? 'systemDesign' : 'frontend'
+    }
+
+    // Get available flashcards for the selected category
+    const categoryFlashcards = getFlashcardsByCategory(categoryToUse)
+    if (categoryFlashcards.length === 0) {
+      // Fallback to all flashcards if category is empty
+      const randomCard = flashcards[Math.floor(Math.random() * flashcards.length)]
+      return randomCard
+    }
+
+    // Pick a random card from the category
+    const randomCard = categoryFlashcards[Math.floor(Math.random() * categoryFlashcards.length)]
+    return randomCard
+  }, [currentChallenge, challengeProgress.completed, levelCategoryCounts])
 
   // Load flashcard if challenge exists on mount
   useEffect(() => {
     if (currentChallenge && currentChallenge.type === 'flashcards' && !currentFlashcard) {
-      const randomCard = flashcards[Math.floor(Math.random() * flashcards.length)]
-      setCurrentFlashcard(randomCard)
+      const selectedCard = selectNextFlashcard()
+      if (selectedCard) {
+        setCurrentFlashcard(selectedCard)
+        generateMultipleChoiceOptions(selectedCard)
+        // Update category counts
+        const category = getFlashcardCategory(selectedCard)
+        setLevelCategoryCounts(prev => ({
+          ...prev,
+          [category]: prev[category] + 1
+        }))
+      }
     }
-  }, [currentChallenge, currentFlashcard])
+  }, [currentChallenge, currentFlashcard, generateMultipleChoiceOptions, selectNextFlashcard, getFlashcardCategory])
+
+  // Check if current flashcard is saved
+  useEffect(() => {
+    const checkSaved = async () => {
+      if (currentFlashcard) {
+        const saved = await savedGameFlashcardsService.isSaved(currentFlashcard.id)
+        setIsSaved(saved)
+      } else {
+        setIsSaved(false)
+      }
+    }
+    checkSaved()
+    
+    // Listen for updates (in case flashcard is unsaved from SavedGameQuestions)
+    const handleUpdate = () => {
+      checkSaved()
+    }
+    window.addEventListener('savedGameFlashcardsUpdated', handleUpdate)
+    
+    return () => {
+      window.removeEventListener('savedGameFlashcardsUpdated', handleUpdate)
+    }
+  }, [currentFlashcard])
+
+  // Handle saving flashcard
+  const handleSaveFlashcard = async () => {
+    if (!currentFlashcard) return
+    
+    const success = await savedGameFlashcardsService.save(currentFlashcard)
+    if (success) {
+      setIsSaved(true)
+      // Show a brief confirmation
+      const btn = document.querySelector('[data-save-btn]')
+      if (btn) {
+        btn.classList.add('animate-pulse')
+        setTimeout(() => btn.classList.remove('animate-pulse'), 500)
+      }
+    }
+  }
+
+  // Update multiple choice when flashcard changes
+  useEffect(() => {
+    if (currentFlashcard && answerMode === 'multiple-choice') {
+      generateMultipleChoiceOptions(currentFlashcard)
+    }
+  }, [currentFlashcard, answerMode, generateMultipleChoiceOptions])
+
+  // Listen for startGameLevel events from GameMode
+  useEffect(() => {
+    const handleStartLevel = (event) => {
+      const { level } = event.detail
+      const currentProgress = loadQuickStartProgress()
+      
+      // Allow starting any unlocked level (can replay completed levels)
+      if (level <= currentProgress.currentLevel) {
+        // Open modal first
+        setIsOpen(true)
+        
+        // Start challenge after a brief delay to ensure modal is open
+        setTimeout(() => {
+          const levelDef = getLevelDefinition(level)
+          const challenge = {
+            ...levelDef.challenge,
+            level: level,
+            startTime: Date.now(),
+          }
+          
+          setCurrentChallenge(challenge)
+          setChallengeProgress({
+            completed: 0,
+            correct: 0,
+            startTime: Date.now(),
+            timeRemaining: challenge.timeLimit || null,
+          })
+          setShowAnswer(false)
+          setUserAnswer('')
+          setIsCorrect(null)
+          setHintLevel(0)
+          setShowHint(false)
+          
+          // Reset category counts for new challenge
+          setLevelCategoryCounts({ systemDesign: 0, frontend: 0 })
+          
+          // Load first flashcard if needed (will be selected in useEffect with balanced logic)
+          if (challenge.type === 'flashcards') {
+            // Don't set flashcard here, let the useEffect handle it with balanced selection
+          }
+          
+          // Update progress (but don't change currentLevel - only mark challenge as active)
+          const updatedProgress = { 
+            ...currentProgress, 
+            currentChallenge: challenge 
+          }
+          setProgress(updatedProgress)
+          saveQuickStartProgress(updatedProgress)
+        }, 100)
+      }
+    }
+
+    window.addEventListener('startGameLevel', handleStartLevel)
+    return () => window.removeEventListener('startGameLevel', handleStartLevel)
+  }, [generateMultipleChoiceOptions])
 
   // Initialize challenge
   const startChallenge = useCallback(() => {
@@ -191,21 +436,25 @@ export function QuickStartGame() {
     })
     setShowAnswer(false)
     setUserAnswer('')
+    setSelectedChoice(null)
     setIsCorrect(null)
     setHintLevel(0)
     setShowHint(false)
+    setAnswerMode('free')
     
-    // Load first flashcard if needed
+    // Reset category counts for new challenge
+    setLevelCategoryCounts({ systemDesign: 0, frontend: 0 })
+    
+    // Load first flashcard if needed (will be selected in useEffect with balanced logic)
     if (challenge.type === 'flashcards') {
-      const randomCard = flashcards[Math.floor(Math.random() * flashcards.length)]
-      setCurrentFlashcard(randomCard)
+      // Don't set flashcard here, let the useEffect handle it with balanced selection
     }
     
     // Update progress
     const newProgress = { ...progress, currentChallenge: challenge }
     setProgress(newProgress)
     saveQuickStartProgress(newProgress)
-  }, [progress])
+  }, [progress, generateMultipleChoiceOptions])
 
   // Timer for time-limited challenges
   useEffect(() => {
@@ -231,47 +480,33 @@ export function QuickStartGame() {
     return () => clearInterval(interval)
   }, [currentChallenge])
 
-  // Handle flashcard answer
+  // Handle flashcard answer submission
   const handleFlashcardAnswer = () => {
-    if (!currentFlashcard || !userAnswer.trim()) return
+    if (!currentFlashcard) return
+    
+    let correct = false
+    
+    if (answerMode === 'free') {
+      if (!userAnswer.trim()) return
     
     // Simple keyword matching for correctness (in a real app, this would be more sophisticated)
     const answerLower = currentFlashcard.answer.toLowerCase()
     const userAnswerLower = userAnswer.toLowerCase()
     const keywords = answerLower.split(' ').filter(w => w.length > 4)
     const matches = keywords.filter(kw => userAnswerLower.includes(kw)).length
-    const correct = matches >= Math.min(2, keywords.length * 0.3) // At least 30% keyword match
+      correct = matches >= Math.min(2, keywords.length * 0.3) // At least 30% keyword match
+    } else if (answerMode === 'multiple-choice') {
+      if (!selectedChoice) return
+      const selectedOption = multipleChoiceOptions.find(opt => opt.id === selectedChoice)
+      correct = selectedOption ? selectedOption.isCorrect : false
+    }
     
     setIsCorrect(correct)
-    
-    setTimeout(() => {
-      setChallengeProgress(prev => {
-        const newCompleted = prev.completed + 1
-        const newCorrect = correct ? prev.correct + 1 : prev.correct
-        
-        // Check if challenge is complete
-        if (newCompleted >= currentChallenge.count) {
-          setTimeout(() => {
-            handleChallengeComplete(true)
-          }, 100)
-        } else {
-          // Load next flashcard
-          const randomCard = flashcards[Math.floor(Math.random() * flashcards.length)]
-          setCurrentFlashcard(randomCard)
-          setShowAnswer(false)
-          setUserAnswer('')
-          setIsCorrect(null)
-          setHintLevel(0)
-          setShowHint(false)
-        }
-        
-        return {
+    // Update progress but don't auto-advance - user clicks Continue button
+    setChallengeProgress(prev => ({
           ...prev,
-          completed: newCompleted,
-          correct: newCorrect,
-        }
-      })
-    }, 2000)
+      correct: correct ? prev.correct + 1 : prev.correct,
+    }))
   }
 
   // Handle question view (for question challenges)
@@ -360,8 +595,13 @@ export function QuickStartGame() {
     try {
       if (!answer) return ''
     
+    // First, process <text> tags before other formatting
+    // This ensures they're styled correctly even if the answer contains them as-is
+    let processedAnswer = answer
+      .replace(/<text>([^<]*?)<\/text>/gi, '<text>$1</text>')
+    
     // Split by numbered lists (1), 2), etc.)
-    let formatted = answer
+    let formatted = processedAnswer
       // Handle numbered lists (1), 2), 3), etc.)
       .replace(/(\d+\))\s+/g, '\n\n$1 ')
       // Handle numbered lists with periods (1., 2., etc.)
@@ -389,6 +629,10 @@ export function QuickStartGame() {
       if (line.startsWith('•')) {
         return `<div class="mb-1 pl-4 text-slate-700 dark:text-slate-300">${line}</div>`
       }
+      
+      // Style <text> tags as inline code with red text (handle both escaped and unescaped)
+      line = line.replace(/&lt;text&gt;([^&]*?)&lt;\/text&gt;/gi, '<code class="px-1.5 py-0.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded text-sm font-mono font-semibold">$1</code>')
+      line = line.replace(/<text>([^<]*?)<\/text>/gi, '<code class="px-1.5 py-0.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded text-sm font-mono font-semibold">$1</code>')
       
       // Check for key terms (words in quotes or ALL CAPS)
       line = line.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-sm font-mono">$1</code>')
@@ -451,13 +695,15 @@ export function QuickStartGame() {
 
   return (
     <>
-      {/* Quick Start Button - Bottom Left */}
+      {/* GAME MODE Button - Bottom Left */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-4 left-4 z-50 w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-500 text-white shadow-2xl border-2 border-yellow-300/50 dark:border-yellow-400/30 flex items-center justify-center hover:shadow-yellow-500/40 hover:scale-110 active:scale-95 transition-all duration-200 touch-manipulation group animate-pulse hover:animate-none"
-        aria-label="Quick Start Game"
+        className="fixed bottom-4 left-4 z-50 px-4 py-3 lg:px-5 lg:py-4 rounded-2xl bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 text-white shadow-2xl border-2 border-yellow-300/50 dark:border-yellow-400/30 flex items-center gap-2 hover:shadow-yellow-500/40 hover:scale-105 active:scale-95 transition-all duration-200 touch-manipulation group animate-pulse hover:animate-none font-bold text-sm lg:text-base"
+        aria-label="GAME MODE"
       >
-        <Zap className="w-6 h-6 lg:w-7 lg:h-7 group-hover:rotate-12 transition-transform" />
+        <Zap className="w-5 h-5 lg:w-6 lg:h-6 group-hover:rotate-12 transition-transform" />
+        <span className="hidden sm:inline">GAME MODE</span>
+        <span className="sm:hidden">🎮</span>
         {progress.currentLevel > 1 && (
           <div className="absolute -top-1 -right-1 w-5 h-5 lg:w-6 lg:h-6 rounded-full bg-red-500 border-2 border-white dark:border-slate-900 flex items-center justify-center text-xs font-bold animate-bounce">
             {progress.currentLevel}
@@ -476,7 +722,7 @@ export function QuickStartGame() {
                   {currentLevelDef.icon}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Quick Start</h2>
+                <h2 className="text-2xl font-bold text-white">GAME MODE</h2>
                   <p className="text-sm text-yellow-100">Level {progress.currentLevel}: {currentLevelDef.name}</p>
                 </div>
               </div>
@@ -577,12 +823,71 @@ export function QuickStartGame() {
                         <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide">
                           {currentFlashcard.category}
                         </div>
-                        <div className="text-lg font-bold text-slate-900 dark:text-white mb-4">
-                          {currentFlashcard.question}
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div className="text-lg font-bold text-slate-900 dark:text-white flex-1">
+                            {currentFlashcard.question}
+                          </div>
+                          <button
+                            onClick={handleSaveFlashcard}
+                            disabled={isSaved}
+                            data-save-btn
+                            className={`flex-shrink-0 p-2 rounded-lg transition-all ${
+                              isSaved
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 cursor-not-allowed'
+                                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400'
+                            }`}
+                            title={isSaved ? 'Already saved' : 'Save this question'}
+                          >
+                            {isSaved ? (
+                              <BookmarkCheck className="w-5 h-5" />
+                            ) : (
+                              <Bookmark className="w-5 h-5" />
+                            )}
+                          </button>
                         </div>
                         
+                        {/* Answer Mode Tabs */}
                         {!showAnswer && (
-                          <div className="space-y-3">
+                          <div className="mb-4">
+                            <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                              <button
+                                onClick={() => {
+                                  setAnswerMode('free')
+                                  setSelectedChoice(null)
+                                }}
+                                className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                                  answerMode === 'free'
+                                    ? 'bg-blue-500 text-white shadow-sm'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                <Type className="w-4 h-4" />
+                                Free Answer
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setAnswerMode('multiple-choice')
+                                  setUserAnswer('')
+                                  if (!multipleChoiceOptions.length) {
+                                    generateMultipleChoiceOptions(currentFlashcard)
+                                  }
+                                }}
+                                className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                                  answerMode === 'multiple-choice'
+                                    ? 'bg-blue-500 text-white shadow-sm'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                <List className="w-4 h-4" />
+                                Multiple Choice
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Answer Input Section */}
+                        {!showAnswer && (
+                          <div className="space-y-4">
                             {/* Hint Section */}
                             {showHint && hintLevel > 0 && (() => {
                               const hints = getHints(currentFlashcard.answer)
@@ -612,8 +917,64 @@ export function QuickStartGame() {
                                 </div>
                               )
                             })()}
-                            
-                            {/* Action Buttons */}
+
+                            {/* Free Answer Mode */}
+                            {answerMode === 'free' && (
+                              <div className="space-y-3">
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                  Type your answer:
+                                </label>
+                                <textarea
+                                  value={userAnswer}
+                                  onChange={(e) => setUserAnswer(e.target.value)}
+                                  placeholder="Type your answer here..."
+                                  className="w-full p-4 rounded-lg border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 focus:outline-none resize-none"
+                                  rows={4}
+                                />
+                              </div>
+                            )}
+
+                            {/* Multiple Choice Mode */}
+                            {answerMode === 'multiple-choice' && multipleChoiceOptions.length > 0 && (
+                              <div className="space-y-3">
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                  Select the correct answer:
+                                </label>
+                                <div className="space-y-2">
+                                  {multipleChoiceOptions.map((option, idx) => (
+                                    <button
+                                      key={option.id}
+                                      onClick={() => setSelectedChoice(option.id)}
+                                      className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                                        selectedChoice === option.id
+                                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-md'
+                                          : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-700'
+                                      }`}
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                          selectedChoice === option.id
+                                            ? 'border-blue-500 bg-blue-500'
+                                            : 'border-slate-400 dark:border-slate-500'
+                                        }`}>
+                                          {selectedChoice === option.id && (
+                                            <CheckCircle className="w-4 h-4 text-white" />
+                                          )}
+                                          {selectedChoice !== option.id && (
+                                            <span className="text-xs font-bold text-slate-400 dark:text-slate-500">{String.fromCharCode(65 + idx)}</span>
+                                          )}
+                                        </div>
+                                        <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 leading-relaxed whitespace-normal break-words">
+                                          {option.text}
+                                        </span>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Submit and Hint Buttons */}
                             <div className="flex gap-2">
                               {hintLevel < 2 && (
                                 <button
@@ -625,22 +986,60 @@ export function QuickStartGame() {
                                 </button>
                               )}
                               <button
-                                onClick={() => setShowAnswer(true)}
-                                className="flex-1 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-colors flex items-center justify-center gap-2"
+                                onClick={handleFlashcardAnswer}
+                                disabled={
+                                  (answerMode === 'free' && !userAnswer.trim()) ||
+                                  (answerMode === 'multiple-choice' && !selectedChoice) ||
+                                  isCorrect !== null
+                                }
+                                className="flex-1 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-all flex items-center justify-center gap-2"
                               >
-                                <Eye className="w-4 h-4" />
-                                Show Answer
+                                <CheckCircle className="w-4 h-4" />
+                                Submit Answer
                               </button>
+                          <button
+                            onClick={() => setShowAnswer(true)}
+                                className="px-4 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-colors flex items-center justify-center gap-2"
+                          >
+                                <Eye className="w-4 h-4" />
+                            Show Answer
+                          </button>
                             </div>
+
+                            {/* Feedback after submission */}
+                            {isCorrect !== null && (
+                              <div className={`p-4 rounded-lg flex items-center gap-3 ${
+                                isCorrect 
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-300 dark:border-green-700' 
+                                  : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-2 border-red-300 dark:border-red-700'
+                              }`}>
+                                {isCorrect ? (
+                                  <CheckCircle className="w-6 h-6 flex-shrink-0" />
+                                ) : (
+                                  <X className="w-6 h-6 flex-shrink-0" />
+                                )}
+                                <div className="flex-1">
+                                  <div className="font-semibold mb-1">
+                                    {isCorrect ? '🎉 Excellent! You got it right!' : '❌ Not quite. Review the answer below.'}
+                                  </div>
+                                  {!isCorrect && (
+                                    <div className="text-sm opacity-90">
+                                      Try again or view the answer to learn more.
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                         
+                        {/* Answer Display */}
                         {showAnswer && (
                           <div className="space-y-4">
                             <div className="p-5 rounded-lg bg-white/80 dark:bg-slate-900/80 border-2 border-blue-200 dark:border-blue-700">
                               <div className="flex items-center gap-2 mb-3">
                                 <CheckCircle className="w-5 h-5 text-green-500" />
-                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Answer</span>
+                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Correct Answer</span>
                               </div>
                               <div 
                                 className="text-sm text-slate-700 dark:text-slate-300 prose prose-sm max-w-none dark:prose-invert"
@@ -648,41 +1047,88 @@ export function QuickStartGame() {
                               />
                             </div>
                             
-                            <div className="space-y-2">
-                              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                                Did you understand this? (Type key points)
-                              </label>
-                              <textarea
-                                value={userAnswer}
-                                onChange={(e) => setUserAnswer(e.target.value)}
-                                placeholder="Type what you learned..."
-                                className="w-full p-3 rounded-lg border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-blue-500 focus:outline-none resize-none"
-                                rows={3}
-                              />
+                            {/* Your Answer (if submitted) */}
                               {isCorrect !== null && (
-                                <div className={`p-3 rounded-lg flex items-center gap-2 ${
+                              <div className={`p-4 rounded-lg border-2 ${
                                   isCorrect 
-                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
-                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                  ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' 
+                                  : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
                                 }`}>
+                                <div className="flex items-center gap-2 mb-2">
                                   {isCorrect ? (
-                                    <CheckCircle className="w-5 h-5" />
+                                    <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
                                   ) : (
-                                    <X className="w-5 h-5" />
+                                    <X className="w-5 h-5 text-red-600 dark:text-red-400" />
                                   )}
-                                  <span className="font-semibold">
-                                    {isCorrect ? 'Great! You got it!' : 'Keep trying! Review the answer.'}
+                                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                    Your Answer: {isCorrect ? 'Correct!' : 'Needs Review'}
                                   </span>
                                 </div>
+                                {answerMode === 'free' && userAnswer && (
+                                  <div className="text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-slate-700 mt-2">
+                                    "{userAnswer}"
+                                  </div>
+                                )}
+                                {answerMode === 'multiple-choice' && selectedChoice && (
+                                  <div className="text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-slate-700 mt-2">
+                                    {multipleChoiceOptions.find(opt => opt.id === selectedChoice)?.text}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Continue Button */}
+                            <button
+                              onClick={() => {
+                                // Move to next card
+                                setChallengeProgress(prev => {
+                                  const newCompleted = prev.completed + 1
+                                  
+                                  if (newCompleted >= currentChallenge.count) {
+                                    setTimeout(() => {
+                                      handleChallengeComplete(true)
+                                    }, 100)
+                                  } else {
+                                    // Load next flashcard with balanced category selection
+                                    const selectedCard = selectNextFlashcard()
+                                    if (selectedCard) {
+                                      setCurrentFlashcard(selectedCard)
+                                      generateMultipleChoiceOptions(selectedCard)
+                                      // Update category counts
+                                      const category = getFlashcardCategory(selectedCard)
+                                      setLevelCategoryCounts(prev => ({
+                                        ...prev,
+                                        [category]: prev[category] + 1
+                                      }))
+                                    }
+                                    setShowAnswer(false)
+                                    setUserAnswer('')
+                                    setSelectedChoice(null)
+                                    setIsCorrect(null)
+                                    setHintLevel(0)
+                                    setShowHint(false)
+                                  }
+                                  
+                                  return {
+                                    ...prev,
+                                    completed: newCompleted,
+                                  }
+                                })
+                              }}
+                              className="w-full py-3 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold transition-all flex items-center justify-center gap-2"
+                            >
+                              {challengeProgress.completed + 1 >= currentChallenge.count ? (
+                                <>
+                                  <Trophy className="w-5 h-5" />
+                                  Complete Challenge
+                                </>
+                              ) : (
+                                <>
+                                  <Play className="w-5 h-5" />
+                                  Next Question
+                                </>
                               )}
-                              <button
-                                onClick={handleFlashcardAnswer}
-                                disabled={!userAnswer.trim() || isCorrect !== null}
-                                className="w-full py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-all"
-                              >
-                                Submit Answer
                               </button>
-                            </div>
                           </div>
                         )}
                       </div>

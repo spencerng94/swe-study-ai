@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BookOpen, ChevronRight, CheckCircle, Code, Lightbulb, Target, ArrowLeft } from 'lucide-react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 // Lesson data - comprehensive but concise lessons for each Study Guide topic
 const lessons = {
@@ -534,17 +536,252 @@ try {
     id: 'javascript-fundamentals',
     title: 'JavaScript Fundamentals',
     session: 'Session 2',
-    duration: '15 min read',
+    duration: '20 min read',
     sections: [
       {
-        title: 'Closures & Scope',
-        content: `**What is a Closure?**
-A closure gives you access to an outer function's scope from an inner function, even after the outer function has returned.
+        title: 'Array Methods Cheat Sheet',
+        content: `**Essential Array Methods - Quick Reference**
 
-**Example:**
+**1. .map() - Transform each element**
+Returns a new array with transformed values. Does not modify original array.
+
+\`\`\`javascript
+const numbers = [1, 2, 3, 4];
+const doubled = numbers.map(n => n * 2);
+// [2, 4, 6, 8]
+
+const users = [{ name: 'John', age: 30 }, { name: 'Jane', age: 25 }];
+const names = users.map(user => user.name);
+// ['John', 'Jane']
+
+// With index
+const indexed = numbers.map((n, i) => n * i);
+// [0, 2, 6, 12]
+\`\`\`
+
+**2. .filter() - Keep elements matching condition**
+Returns a new array with elements that pass the test. Does not modify original array.
+
+\`\`\`javascript
+const numbers = [1, 2, 3, 4, 5, 6];
+const evens = numbers.filter(n => n % 2 === 0);
+// [2, 4, 6]
+
+const users = [
+  { name: 'John', age: 30 },
+  { name: 'Jane', age: 17 },
+  { name: 'Bob', age: 25 }
+];
+const adults = users.filter(user => user.age >= 18);
+// [{ name: 'John', age: 30 }, { name: 'Bob', age: 25 }]
+\`\`\`
+
+**3. .reduce() - Accumulate values into single result**
+Most powerful method. Reduces array to a single value. Can return any type.
+
+\`\`\`javascript
+// Sum all numbers
+const numbers = [1, 2, 3, 4, 5];
+const sum = numbers.reduce((acc, current) => acc + current, 0);
+// 15
+
+// Group by property
+const users = [
+  { name: 'John', role: 'admin' },
+  { name: 'Jane', role: 'user' },
+  { name: 'Bob', role: 'admin' }
+];
+const grouped = users.reduce((acc, user) => {
+  if (!acc[user.role]) acc[user.role] = [];
+  acc[user.role].push(user);
+  return acc;
+}, {});
+// { admin: [{...}, {...}], user: [{...}] }
+
+// Flatten array
+const nested = [[1, 2], [3, 4], [5, 6]];
+const flat = nested.reduce((acc, arr) => [...acc, ...arr], []);
+// [1, 2, 3, 4, 5, 6]
+
+// Find max value
+const max = numbers.reduce((max, current) => current > max ? current : max, numbers[0]);
+// 5
+\`\`\`
+
+**4. .forEach() - Execute function for each element**
+Used for side effects (logging, DOM updates). Returns undefined. Does not modify original array.
+
+\`\`\`javascript
+const numbers = [1, 2, 3];
+numbers.forEach(n => console.log(n * 2));
+// Logs: 2, 4, 6
+
+const users = [{ name: 'John' }, { name: 'Jane' }];
+users.forEach((user, index) => {
+  console.log(\`User \${index}: \${user.name}\`);
+});
+// Logs: User 0: John, User 1: Jane
+\`\`\`
+
+**5. .find() - Find first matching element**
+Returns the first element that satisfies the condition, or undefined.
+
+\`\`\`javascript
+const users = [
+  { id: 1, name: 'John' },
+  { id: 2, name: 'Jane' },
+  { id: 3, name: 'Bob' }
+];
+const user = users.find(u => u.id === 2);
+// { id: 2, name: 'Jane' }
+
+const found = users.find(u => u.name.startsWith('J'));
+// { id: 1, name: 'John' } (first match)
+\`\`\`
+
+**6. .findIndex() - Find index of first matching element**
+Returns the index of the first element that satisfies the condition, or -1.
+
+\`\`\`javascript
+const numbers = [10, 20, 30, 40];
+const index = numbers.findIndex(n => n > 25);
+// 2
+
+const users = [{ name: 'John' }, { name: 'Jane' }];
+const janeIndex = users.findIndex(u => u.name === 'Jane');
+// 1
+\`\`\`
+
+**7. .some() - Test if any element passes**
+Returns true if at least one element passes the test, false otherwise.
+
+\`\`\`javascript
+const numbers = [1, 2, 3, 4, 5];
+const hasEven = numbers.some(n => n % 2 === 0);
+// true
+
+const hasNegative = numbers.some(n => n < 0);
+// false
+
+const users = [{ age: 17 }, { age: 25 }, { age: 30 }];
+const hasMinor = users.some(u => u.age < 18);
+// true
+\`\`\`
+
+**8. .every() - Test if all elements pass**
+Returns true if all elements pass the test, false otherwise.
+
+\`\`\`javascript
+const numbers = [2, 4, 6, 8];
+const allEven = numbers.every(n => n % 2 === 0);
+// true
+
+const allPositive = numbers.every(n => n > 0);
+// true
+
+const users = [{ age: 18 }, { age: 20 }, { age: 17 }];
+const allAdults = users.every(u => u.age >= 18);
+// false
+\`\`\`
+
+**9. .includes() - Check if array contains value**
+Returns true if array includes the value, false otherwise. Uses strict equality (===).
+
+\`\`\`javascript
+const fruits = ['apple', 'banana', 'orange'];
+const hasApple = fruits.includes('apple');
+// true
+
+const hasGrape = fruits.includes('grape');
+// false
+
+const numbers = [1, 2, 3, NaN];
+numbers.includes(NaN); // true (unlike indexOf)
+\`\`\`
+
+**10. .sort() - Sort array in place**
+Sorts array elements and returns the same array (mutates original). Default is string sort.
+
+\`\`\`javascript
+// String sort (default)
+const fruits = ['banana', 'apple', 'cherry'];
+fruits.sort();
+// ['apple', 'banana', 'cherry']
+
+// Number sort (ascending)
+const numbers = [10, 5, 40, 25, 1000, 1];
+numbers.sort((a, b) => a - b);
+// [1, 5, 10, 25, 40, 1000]
+
+// Number sort (descending)
+numbers.sort((a, b) => b - a);
+// [1000, 40, 25, 10, 5, 1]
+
+// Object sort
+const users = [
+  { name: 'John', age: 30 },
+  { name: 'Jane', age: 25 },
+  { name: 'Bob', age: 35 }
+];
+users.sort((a, b) => a.age - b.age);
+// Sorted by age: Jane (25), John (30), Bob (35)
+\`\`\`
+
+**11. .slice() - Extract portion of array**
+Returns a shallow copy of portion of array. Does not modify original array.
+
+\`\`\`javascript
+const numbers = [0, 1, 2, 3, 4, 5];
+const firstThree = numbers.slice(0, 3);
+// [0, 1, 2] (original unchanged)
+
+const lastTwo = numbers.slice(-2);
+// [4, 5]
+
+const middle = numbers.slice(2, 4);
+// [2, 3]
+
+// Copy entire array
+const copy = numbers.slice();
+// [0, 1, 2, 3, 4, 5] (new array)
+\`\`\`
+
+**12. .splice() - Add/remove elements in place**
+Modifies array by removing/replacing elements. Returns array of removed elements.
+
+\`\`\`javascript
+const numbers = [1, 2, 3, 4, 5];
+
+// Remove 2 elements starting at index 1
+const removed = numbers.splice(1, 2);
+// removed: [2, 3], numbers: [1, 4, 5]
+
+// Insert elements at index 1
+numbers.splice(1, 0, 'a', 'b');
+// numbers: [1, 'a', 'b', 4, 5] (inserted, nothing removed)
+
+// Replace elements
+numbers.splice(1, 2, 'x', 'y');
+// Removed 'a', 'b', inserted 'x', 'y'
+// numbers: [1, 'x', 'y', 4, 5]
+\`\`\`
+
+**Method Comparison Quick Reference:**
+- **Returns new array**: map, filter, slice, concat, flat
+- **Returns single value**: reduce, find, some, every, includes
+- **Modifies original**: sort, splice, reverse, push, pop, shift, unshift
+- **Returns index**: findIndex, indexOf
+- **Side effects only**: forEach`,
+      },
+      {
+        title: 'Closures - Deep Dive with Examples',
+        content: `**What is a Closure?**
+A closure gives you access to an outer function's scope from an inner function, even after the outer function has returned. The inner function "closes over" variables from the outer scope.
+
+**Basic Closure Example:**
 \`\`\`javascript
 function createCounter() {
-    let count = 0; // Private variable
+    let count = 0; // Private variable - only accessible via closures
     
     return {
         increment: () => ++count,
@@ -555,19 +792,161 @@ function createCounter() {
 
 const counter1 = createCounter();
 const counter2 = createCounter();
-// Each has its own 'count' variable!
+
+console.log(counter1.increment()); // 1
+console.log(counter1.increment()); // 2
+console.log(counter2.increment()); // 1 (separate closure!)
+console.log(counter1.getValue());  // 2
+// Each counter has its own private 'count' variable!
 \`\`\`
 
-**Common Use Cases:**
-- Data privacy (private variables)
-- Function factories
-- Event handlers
-- React hooks (useState, useEffect)
+**Common Closure Pattern - Data Privacy:**
+\`\`\`javascript
+function createBankAccount(initialBalance) {
+    let balance = initialBalance; // Private - cannot access directly
+    
+    return {
+        deposit: (amount) => {
+            balance += amount;
+            return balance;
+        },
+        withdraw: (amount) => {
+            if (amount <= balance) {
+                balance -= amount;
+                return balance;
+            }
+            throw new Error('Insufficient funds');
+        },
+        getBalance: () => balance // Read-only access
+    };
+}
 
-**Scope Chain:**
-- Inner functions have access to outer scope
-- Variables are looked up through the scope chain
-- Closures "remember" their outer scope`,
+const account = createBankAccount(100);
+account.deposit(50);  // 150
+account.withdraw(30); // 120
+console.log(account.balance); // undefined (private!)
+console.log(account.getBalance()); // 120
+\`\`\`
+
+**Closure in Loops - Classic Gotcha:**
+\`\`\`javascript
+// Problem: All functions reference the same 'i'
+for (var i = 0; i < 3; i++) {
+    setTimeout(() => console.log(i), 100); // Logs: 3, 3, 3
+}
+
+// Solution 1: Use let (block scope)
+for (let i = 0; i < 3; i++) {
+    setTimeout(() => console.log(i), 100); // Logs: 0, 1, 2
+}
+
+// Solution 2: IIFE (Immediately Invoked Function Expression)
+for (var i = 0; i < 3; i++) {
+    (function(index) {
+        setTimeout(() => console.log(index), 100);
+    })(i); // Creates new closure for each iteration
+}
+\`\`\`
+
+**Function Factory Pattern:**
+\`\`\`javascript
+function createMultiplier(multiplier) {
+    // 'multiplier' is captured in closure
+    return function(number) {
+        return number * multiplier;
+    };
+}
+
+const double = createMultiplier(2);
+const triple = createMultiplier(3);
+
+console.log(double(5));  // 10
+console.log(triple(5));  // 15
+
+// More complex factory
+function createValidator(rules) {
+    return function(value) {
+        return rules.every(rule => rule(value));
+    };
+}
+
+const isEmail = createValidator([
+    v => v.includes('@'),
+    v => v.includes('.'),
+    v => v.length > 5
+]);
+
+console.log(isEmail('test@example.com')); // true
+console.log(isEmail('invalid'));          // false
+\`\`\`
+
+**Closure with Event Handlers:**
+\`\`\`javascript
+function setupButtons() {
+    const buttons = document.querySelectorAll('.btn');
+    
+    buttons.forEach((button, index) => {
+        // Closure captures 'index' for each button
+        button.addEventListener('click', function() {
+            console.log(\`Button \${index} clicked!\`);
+            // Each button remembers its own index
+        });
+    });
+}
+
+// In React - closure in useEffect
+function Component() {
+    const [count, setCount] = useState(0);
+    
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCount(c => c + 1); // Closure over 'setCount'
+        }, 1000);
+        
+        return () => clearInterval(interval);
+    }, []); // Empty deps - closure ensures fresh reference
+}
+\`\`\`
+
+**Module Pattern (Private Methods):**
+\`\`\`javascript
+const calculator = (function() {
+    // Private variables and functions
+    let result = 0;
+    
+    function validate(num) {
+        return typeof num === 'number' && !isNaN(num);
+    }
+    
+    // Public API
+    return {
+        add: (num) => {
+            if (validate(num)) result += num;
+            return this;
+        },
+        subtract: (num) => {
+            if (validate(num)) result -= num;
+            return this;
+        },
+        getResult: () => result,
+        reset: () => {
+            result = 0;
+            return this;
+        }
+    };
+})();
+
+calculator.add(10).subtract(3).add(5);
+console.log(calculator.getResult()); // 12
+// 'validate' is not accessible outside - private!
+\`\`\`
+
+**Key Takeaways:**
+- Closures allow inner functions to access outer scope variables
+- Variables in closure persist even after outer function returns
+- Each closure has its own independent set of variables
+- Useful for data privacy, function factories, and event handlers
+- Be careful with closures in loops - use let or IIFE`,
       },
       {
         title: 'Event Loop: Microtasks vs Macrotasks',
@@ -678,7 +1057,10 @@ useEffect(() => {
       },
     ],
     keyTakeaways: [
-      'Closures provide data privacy and function factories',
+      'map/filter/reduce are essential - map transforms, filter selects, reduce accumulates',
+      'Use .find() for single element, .filter() for multiple, .some()/.every() for boolean checks',
+      'Closures provide data privacy, function factories, and are key to React hooks',
+      'Be careful with closures in loops - use let or IIFE to create proper closures',
       'Microtasks (Promises) execute before macrotasks (setTimeout)',
       'Keep business logic pure, isolate side effects',
       'Async/await makes asynchronous code more readable',
@@ -1265,11 +1647,23 @@ function LessonDetail({ lesson, onBack }) {
                     const codeMatch = paragraph.match(/```(\w+)?\n([\s\S]*?)```/)
                     if (codeMatch) {
                       const language = codeMatch[1] || 'javascript'
-                      const code = codeMatch[2]
+                      const code = codeMatch[2].trim()
                       return (
-                        <pre key={pIdx} className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4">
-                          <code className="text-sm">{code}</code>
-                        </pre>
+                        <div key={pIdx} className="my-4 rounded-lg overflow-hidden border border-gray-300">
+                          <SyntaxHighlighter
+                            language={language}
+                            style={vscDarkPlus}
+                            customStyle={{
+                              margin: 0,
+                              padding: '1rem',
+                              fontSize: '0.875rem',
+                              lineHeight: '1.5',
+                            }}
+                            showLineNumbers={true}
+                          >
+                            {code}
+                          </SyntaxHighlighter>
+                        </div>
                       )
                     }
                   }

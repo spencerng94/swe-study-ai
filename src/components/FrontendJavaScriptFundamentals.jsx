@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, Code, Lightbulb, MessageSquare, CheckCircle } from 'lucide-react'
 
 // Concept order reasoning:
@@ -903,6 +903,38 @@ async function fast() {
 
 function FrontendJavaScriptFundamentals() {
   const [expandedConcepts, setExpandedConcepts] = useState(() => new Set(['pure-functions']))
+  const [completedConcepts, setCompletedConcepts] = useState(new Set())
+
+  // Load progress on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('frontendProgress')
+    if (saved) {
+      try {
+        const progress = JSON.parse(saved)
+        setCompletedConcepts(new Set(Object.keys(progress).filter(key => progress[key])))
+      } catch (e) {
+        console.error('Error loading frontend progress:', e)
+      }
+    }
+  }, [])
+
+  // Track when concepts are viewed/completed
+  const markConceptCompleted = (conceptId) => {
+    if (!completedConcepts.has(conceptId)) {
+      const newCompleted = new Set([...completedConcepts, conceptId])
+      setCompletedConcepts(newCompleted)
+      
+      // Save to localStorage
+      const progress = {}
+      Array.from(newCompleted).forEach(key => {
+        progress[key] = true
+      })
+      localStorage.setItem('frontendProgress', JSON.stringify(progress))
+      
+      // Dispatch event for GameMode to listen
+      window.dispatchEvent(new CustomEvent('frontendProgress'))
+    }
+  }
 
   const toggleConcept = (conceptId) => {
     const newExpanded = new Set(expandedConcepts)
@@ -910,6 +942,8 @@ function FrontendJavaScriptFundamentals() {
       newExpanded.delete(conceptId)
     } else {
       newExpanded.add(conceptId)
+      // Mark as completed when expanded (viewed)
+      markConceptCompleted(conceptId)
     }
     setExpandedConcepts(newExpanded)
   }
